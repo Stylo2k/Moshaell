@@ -5,7 +5,7 @@
 all: lex.yy.c
 	gcc lex.yy.c -lfl -o shell
 
-mac:
+mac: lex.yy.c
 	gcc lex.yy.c -ll -o shell
 
 lex.yy.c: shell.l

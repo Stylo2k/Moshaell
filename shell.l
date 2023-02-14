@@ -1,18 +1,22 @@
-/**
- * This is an example minimal parser in just flex for the grammar of Shell part 1.
- * 
- * This does not contain any logic for executing the commands, but it should serve
- * as a basis on top of which you can easily continue. Throughout the file, we have
- * included some comments and instructions on how to expand.
- * 
- * Floris Westerman, 2022
- */
-
-/* Here we enter a section that is copied verbatim to the output */
 %{
 // Headers for use in this file
 #include <stdio.h>
 #include <stdlib.h>
+#include "state.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+void execCommand();
+void addOption(char* option);
+void findBinary(char* yytext);
+
+WordState state;
+
+char* commandPath = NULL;
+char** commandArgs = NULL;
 
 //////////// Here you can put some helper functions and code, but make sure to properly
 //////////// separate your code in logical "entities" in different files! This helps
@@ -108,9 +112,10 @@
                         //////////// Put your code here!
                     }
 \n                  {
-                        printf("Performing \\n\n");
+                        fprintf(stderr, "Performing \\n\n");
 
-                        //////////// Put your code here!
+                        state = COMMAND_STATE;
+                        execCommand();
                     }
 [ \t]+              /* Ignore whitespace */
 [^ ;\t\n\"\^|]+     {
@@ -121,9 +126,15 @@
 
                         // Entire string value is available in yytext with length yyleng
                         // Make sure to copy it!
-                        printf("WORD: %s\n", yytext);
-
-                        //////////// Put your code here!
+                        if (state == COMMAND_STATE) {
+                            fprintf(stderr, "COMMAND: %s\n", yytext);
+                            findBinary(yytext);
+                        } else if (state == OPTION_STATE) {
+                            fprintf(stderr, "OPTION: %s\n", yytext);
+                            addOption(yytext);
+                        } else if (state == FILENAME_STATE) {
+                            fprintf(stderr, "FILENAME: %s\n", yytext);
+                        }
                     }
 <<EOF>>             {
                         /* At EOF we should unconditionally terminate! */
@@ -140,13 +151,140 @@
 /* All code after the second pair of %% is just plain C where you typically
  * write your main function and such. */
 
+void state_init() {
+    // Initialize state
+    state = COMMAND_STATE;
+}
+
+
+void cleanUp() {
+    free(commandPath);
+    commandPath = NULL;
+    int i = 0;
+    while (commandArgs[i] != NULL) {
+        free(commandArgs[i]);
+        i++;
+    }
+    free(commandArgs);
+    commandArgs = NULL;
+}
+
+void printShellPrompt() {
+    char* cwd = getcwd(NULL, 0);
+    printf("%s$ ", cwd);
+    free(cwd);
+}
+
+void findBinary(char* yytext) {
+    // verify that the command is valid, by looking it up in the
+    // PATH environment variable
+    char* origFullPath = getenv( "PATH" );
+    
+    // we need to make a copy of the original string, since its a pointer
+    char* fullPath = malloc(strlen(origFullPath) + 1);
+    strcpy(fullPath, origFullPath);
+
+    char* path = strtok(fullPath, ":");
+    struct stat st;
+    while (path != NULL) {
+        char* fullPath = malloc(strlen(path) + strlen(yytext) + 2);
+        strcpy(fullPath, path);
+        strcat(fullPath, "/");
+        strcat(fullPath, yytext);
+        if (stat(fullPath, &st) == 0) {
+            fprintf(stderr, "Command found at %s\n", fullPath);
+            
+            if (commandPath == NULL) {
+                commandPath = malloc(strlen(fullPath) + strlen(yytext) + 2);
+                strcpy(commandPath, fullPath);
+                if (commandArgs == NULL) {
+                    commandArgs = malloc(sizeof(char*));
+                    commandArgs[0] = malloc(strlen(fullPath) + 1);
+                    strcpy(commandArgs[0], fullPath);
+                    commandArgs[1] = NULL;
+                } 
+            }
+
+            break;
+        }
+        path = strtok(NULL, ":");
+    }
+    
+    if (path == NULL) {
+        printf("Command not found\n");
+        // if the command is not found, we should just ignore it
+        state = COMMAND_STATE;
+    } else {
+        state = OPTION_STATE;
+    }
+}
+
+void addOption(char* option) {
+    // start from 1, since 0 is the command
+    int i = 1;
+    while (commandArgs[i] != NULL) {
+        i++;
+    }
+    commandArgs = realloc(commandArgs, sizeof(char*) * (i + 2));
+    commandArgs[i] = malloc(strlen(option) + 1);
+    strcpy(commandArgs[i], option);
+    commandArgs[i + 1] = NULL;
+}
+
+
+void execCommand() {
+    // check if the command if "cd" 
+    if (strcmp(commandArgs[0], "/usr/bin/cd") == 0) {
+        if (commandArgs[1] == NULL) {
+            chdir(getenv("HOME"));
+        } else {
+            chdir(commandArgs[1]);
+        }
+        cleanUp();
+        printShellPrompt();
+        return;
+    }
+
+    int link[2];
+
+    if (pipe(link) == -1) {
+        perror("pipe");
+        exit(1);
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        dup2(link[1], STDOUT_FILENO);
+        close(link[0]);
+        close(link[1]);
+        // this will be performed by the child process
+        // so execute the command
+        fprintf(stderr, "Exec %s\n", commandPath);
+        int exitCode = execv(commandPath, commandArgs);
+        fprintf(stderr, "Exit code: %d\n", exitCode);
+    } else {
+        close(link[1]);
+        char buffer[1024];
+        int bytesRead = read(link[0], buffer, 1024);
+        buffer[bytesRead] = '\0';
+        printf("%s\n\n", buffer);
+        // this will be performed by the parent process
+        // so tell it to wait for the child process to finish
+        wait(NULL);
+        cleanUp();
+        printShellPrompt();
+    }
+}
+
 int main() {
     // Initialize program
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
 
     // Set up some state
-
+    state_init();
+    
+    printShellPrompt();
     // Start parsing process
     yylex();
 
