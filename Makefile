@@ -3,7 +3,7 @@
 # code you might have into a single final executable.
 
 all: lex.yy.c
-	gcc lex.yy.c -lfl -o shell
+	gcc -g lex.yy.c -lfl -o shell
 
 mac: lex.yy.c
 	gcc lex.yy.c -ll -o shell

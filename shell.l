@@ -12,11 +12,17 @@
 void execCommand();
 void addOption(char* option);
 void findBinary(char* yytext);
+void printShellPrompt();
+void cleanUp();
 
 WordState state;
+Opera operator = NONE;
 
 char* commandPath = NULL;
 char** commandArgs = NULL;
+int exitCode = 0;
+int prev = 0;
+
 
 //////////// Here you can put some helper functions and code, but make sure to properly
 //////////// separate your code in logical "entities" in different files! This helps
@@ -98,26 +104,53 @@ char** commandArgs = NULL;
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 "&&"                {
                         printf("Performing &&\n");
-
+                        operator = AND;
+                        state = COMMAND_STATE;
+                        if(prev==0){
+                            execCommand();
+                            prev = (exitCode==0);
+                        } else{
+                            cleanUp();
+                        }
                         //////////// Put your code here!
                     }
 "||"                {
                         printf("Performing ||\n");
-
+                        operator = OR;
+                        state = COMMAND_STATE;
+                        if(prev == 0){
+                            execCommand();
+                            prev = (exitCode==0);
+                        }
+                        else{
+                            cleanUp();
+                        }
+                        // TODO: check exit code if non zero execute next command
                         //////////// Put your code here!
                     }
 ;                   { 
-                        printf("Performing ;\n");
-
+                        fprintf(stderr, "Performing ;\n");
+                        prev = 0;
+                        //TODO: check if we should add an if
+                        state = COMMAND_STATE;
+                        execCommand();
+                        printShellPrompt();
                         //////////// Put your code here!
                     }
 \n                  {
                         fprintf(stderr, "Performing \\n\n");
-
+                        prev = 0;
+                        //TODO: check if we should add an if
                         state = COMMAND_STATE;
                         execCommand();
+                        printShellPrompt();
                     }
 [ \t]+              /* Ignore whitespace */
+"status\n"            {
+        printf("The most recent exit code is: %d.\n", exitCode);
+        state = COMMAND_STATE;
+        printShellPrompt();
+    }
 [^ ;\t\n\"\^|]+     {
                         /* Here we match any sequence of characters without whitespace as a
                          * "word" or so. We should either make this the command to execute,
@@ -145,7 +178,6 @@ char** commandArgs = NULL;
                         fprintf(stdout, "Unrecognized character: %s\n", yytext );
                         BEGIN(error);
                     }
-
 %%
 
 /* All code after the second pair of %% is just plain C where you typically
@@ -198,7 +230,7 @@ void findBinary(char* yytext) {
                 commandPath = malloc(strlen(fullPath) + strlen(yytext) + 2);
                 strcpy(commandPath, fullPath);
                 if (commandArgs == NULL) {
-                    commandArgs = malloc(sizeof(char*));
+                    commandArgs = malloc(sizeof(char**)*2);
                     commandArgs[0] = malloc(strlen(fullPath) + 1);
                     strcpy(commandArgs[0], fullPath);
                     commandArgs[1] = NULL;
@@ -213,7 +245,7 @@ void findBinary(char* yytext) {
     if (path == NULL) {
         printf("Command not found\n");
         // if the command is not found, we should just ignore it
-        state = COMMAND_STATE;
+        //state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
     } else {
         state = OPTION_STATE;
     }
@@ -225,7 +257,7 @@ void addOption(char* option) {
     while (commandArgs[i] != NULL) {
         i++;
     }
-    commandArgs = realloc(commandArgs, sizeof(char*) * (i + 2));
+    commandArgs = realloc(commandArgs, sizeof(char**) * (i + 2));
     commandArgs[i] = malloc(strlen(option) + 1);
     strcpy(commandArgs[i], option);
     commandArgs[i + 1] = NULL;
@@ -233,7 +265,20 @@ void addOption(char* option) {
 
 
 void execCommand() {
-    // check if the command if "cd" 
+    // if(operator==AND && exitCode!=0){
+    //     operator = NONE;
+    //     cleanUp();
+    //     printShellPrompt();
+    //     return;
+    // }
+    // if (operator==OR && exitCode == 0) {
+    //     operator = NONE;
+    //     cleanUp();
+    //     printShellPrompt();
+    //     return;
+    // }
+
+    // check if the command is "cd" 
     if (strcmp(commandArgs[0], "/usr/bin/cd") == 0) {
         if (commandArgs[1] == NULL) {
             chdir(getenv("HOME"));
@@ -260,8 +305,7 @@ void execCommand() {
         // this will be performed by the child process
         // so execute the command
         fprintf(stderr, "Exec %s\n", commandPath);
-        int exitCode = execv(commandPath, commandArgs);
-        fprintf(stderr, "Exit code: %d\n", exitCode);
+        execv(commandPath, commandArgs);
     } else {
         close(link[1]);
         char buffer[1024];
@@ -270,9 +314,11 @@ void execCommand() {
         printf("%s\n\n", buffer);
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
-        wait(NULL);
+        int status;
+        wait(&status);
+        exitCode = WEXITSTATUS(status);
         cleanUp();
-        printShellPrompt();
+        //printShellPrompt();
     }
 }
 
