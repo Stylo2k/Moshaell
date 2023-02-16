@@ -2,48 +2,28 @@
 // Headers for use in this file
 #include <stdio.h>
 #include <stdlib.h>
-#include "state.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "lib.h"
+#include "state.h"
 #include "parser.tab.h"
 
-void execCommand();
-void addOption(char* option);
-void findBinary(char* yytext);
-void printShellPrompt();
-void cleanUp();
+extern WordState state;
+extern Opera operator;
 
-WordState state;
-Opera operator = NONE;
-
-char* commandPath = NULL;
-char** commandArgs = NULL;
-int exitCode = 0;
-int prev = 0;
+extern char* commandPath;
+extern char** commandArgs;
+extern int exitCode;
+extern int prev;
+extern int wasQuotes;
 
 int linenr = 1;
 int colnr  = 1;
 
 static char *inputbuffer;
-
-static void eat() {
-  char *s;
-  for (s=yytext; *s; s++) {
-    // if (*s == '\n') {
-    //   linenr++;
-    //   colnr = 0;
-    // } 
-    colnr++;
-  }
-}
-
-
-//////////// Here you can put some helper functions and code, but make sure to properly
-//////////// separate your code in logical "entities" in different files! This helps
-//////////// us grade your code as well.
 
 %}
 
@@ -91,9 +71,10 @@ static void eat() {
 
                         // Entire string value is available in yytext with length yyleng
                         // Make sure to copy it!
-                        printf("STRING: %s\n", yytext);
-
-                        //////////// Put your code here!
+                        // printf("STRING: %s\n", yytext);
+                        yylval.str = yytext;
+                        fprintf(stderr, "OPTION: %s\n", yytext);
+                        return OPTION;
                     }
 
     /* Here we have cases for error handling - when we have encountered an invalid syntax,
@@ -112,78 +93,48 @@ static void eat() {
                          * use REJECT to let flex continue to the next match (as a string,
                          * later on). */
 
-                        //////////// Put your code here!
-
-                        REJECT;
+                        exit(0);
                     }
 
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 "&&"                {
-                        printf("Performing &&\n");
+                        // printf("Performing &&\n");
                         operator = AND;
                         state = COMMAND_STATE;
-                        if(prev==0){
-                            execCommand();
-                            prev = (exitCode==0);
-                        } else{
-                            cleanUp();
-                        }
-                        //eat();
                         return AND_OP;
-                        //////////// Put your code here!
                     }
 "&"                 {
-                        //eat();
                         return AMP;
                         //TODO: add the gt lt
 }
 
 "||"                {
-                        printf("Performing ||\n");
                         operator = OR;
                         state = COMMAND_STATE;
-                        if(prev == 0){
-                            execCommand();
-                            prev = (exitCode==0);
-                        }
-                        else{
-                            cleanUp();
-                        }
-                        //eat();
                         return OR_OP;
                         // TODO: check exit code if non zero execute next command
-                        //////////// Put your code here!
                     }
 ;                   { 
                         fprintf(stderr, "Performing ;\n");
                         prev = 0;
                         //TODO: check if we should add an if
                         state = COMMAND_STATE;
-                        execCommand();
-                        printShellPrompt();
-                        //eat();
                         return SEMICOLON;
-                        //////////// Put your code here!
                     }
 \n                  {
                         fprintf(stderr, "Performing \\n\n");
                         prev = 0;
                         //TODO: check if we should add an if
                         state = COMMAND_STATE;
-                        //execCommand();
-                        //printShellPrompt();
-                        //eat();
                         return NEWLINE;
                     }
 [ \t]+              /* Ignore whitespace */
-"status\n"            {
-        printf("The most recent exit code is: %d.\n", exitCode);
-        state = COMMAND_STATE;
-        printShellPrompt();
-        //eat();
-        return BUILTIN;
-    }
+"status"            {
+                        printf("The most recent exit code is: %d.\n", exitCode);
+                        state = COMMAND_STATE;
+                        return BUILTIN;
+                    }
 [^ ;\t\n\"\^|]+     {
                         /* Here we match any sequence of characters without whitespace as a
                          * "word" or so. We should either make this the command to execute,
@@ -194,18 +145,21 @@ static void eat() {
                         // Make sure to copy it!
                         if (state == COMMAND_STATE) {
                             fprintf(stderr, "COMMAND: %s\n", yytext);
-                            findBinary(yytext);
-                            //eat();
                             state= OPTION_STATE;
+                            
+                            yylval.str = yytext;
+
                             return EXECUTABLE;
                         } else if (state == OPTION_STATE) {
                             fprintf(stderr, "OPTION: %s\n", yytext);
-                            addOption(yytext);
-                            //eat();
-                            return OPTIONS;
+                            
+                            yylval.str = yytext;
+                            
+                            // addOption(yytext);
+                            
+                            return OPTION;
                         } else if (state == FILENAME_STATE) {
                             fprintf(stderr, "FILENAME: %s\n", yytext);
-                            //eat();
                             return FILENAME;
                         }
                     }
@@ -220,147 +174,6 @@ static void eat() {
                     }
 %%
 
-/* All code after the second pair of %% is just plain C where you typically
- * write your main function and such. */
-
-void state_init() {
-    // Initialize state
-    state = COMMAND_STATE;
-}
-
-
-void cleanUp() {
-    free(commandPath);
-    commandPath = NULL;
-    int i = 0;
-    while (commandArgs[i] != NULL) {
-        free(commandArgs[i]);
-        i++;
-    }
-    free(commandArgs);
-    commandArgs = NULL;
-}
-
-void printShellPrompt() {
-    char* cwd = getcwd(NULL, 0);
-    printf("%s$ ", cwd);
-    free(cwd);
-}
-
-void findBinary(char* yytext) {
-    // verify that the command is valid, by looking it up in the
-    // PATH environment variable
-    char* origFullPath = getenv( "PATH" );
-    
-    // we need to make a copy of the original string, since its a pointer
-    char* fullPath = malloc(strlen(origFullPath) + 1);
-    strcpy(fullPath, origFullPath);
-
-    char* path = strtok(fullPath, ":");
-    struct stat st;
-    while (path != NULL) {
-        char* fullPath = malloc(strlen(path) + strlen(yytext) + 2);
-        strcpy(fullPath, path);
-        strcat(fullPath, "/");
-        strcat(fullPath, yytext);
-        if (stat(fullPath, &st) == 0) {
-            fprintf(stderr, "Command found at %s\n", fullPath);
-            
-            if (commandPath == NULL) {
-                commandPath = malloc(strlen(fullPath) + strlen(yytext) + 2);
-                strcpy(commandPath, fullPath);
-                if (commandArgs == NULL) {
-                    commandArgs = malloc(sizeof(char**)*2);
-                    commandArgs[0] = malloc(strlen(fullPath) + 1);
-                    strcpy(commandArgs[0], fullPath);
-                    commandArgs[1] = NULL;
-                } 
-            }
-
-            break;
-        }
-        path = strtok(NULL, ":");
-    }
-    
-    if (path == NULL) {
-        printf("Command not found\n");
-        // if the command is not found, we should just ignore it
-        state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
-    } else {
-        state = OPTION_STATE;
-    }
-}
-
-void addOption(char* option) {
-    // start from 1, since 0 is the command
-    int i = 1;
-    while (commandArgs[i] != NULL) {
-        i++;
-    }
-    commandArgs = realloc(commandArgs, sizeof(char**) * (i + 2));
-    commandArgs[i] = malloc(strlen(option) + 1);
-    strcpy(commandArgs[i], option);
-    commandArgs[i + 1] = NULL;
-}
-
-
-void execCommand() {
-    // if(operator==AND && exitCode!=0){
-    //     operator = NONE;
-    //     cleanUp();
-    //     printShellPrompt();
-    //     return;
-    // }
-    // if (operator==OR && exitCode == 0) {
-    //     operator = NONE;
-    //     cleanUp();
-    //     printShellPrompt();
-    //     return;
-    // }
-
-    // check if the command is "cd" 
-    if (strcmp(commandArgs[0], "/usr/bin/cd") == 0) {
-        if (commandArgs[1] == NULL) {
-            chdir(getenv("HOME"));
-        } else {
-            chdir(commandArgs[1]);
-        }
-        cleanUp();
-        printShellPrompt();
-        return;
-    }
-
-    int link[2];
-
-    if (pipe(link) == -1) {
-        perror("pipe");
-        exit(1);
-    }
-
-    pid_t pid = fork();
-    if (pid == 0) {
-        dup2(link[1], STDOUT_FILENO);
-        close(link[0]);
-        close(link[1]);
-        // this will be performed by the child process
-        // so execute the command
-        fprintf(stderr, "Exec %s\n", commandPath);
-        execv(commandPath, commandArgs);
-    } else {
-        close(link[1]);
-        char buffer[1024];
-        int bytesRead = read(link[0], buffer, 1024);
-        buffer[bytesRead] = '\0';
-        printf("%s\n\n", buffer);
-        // this will be performed by the parent process
-        // so tell it to wait for the child process to finish
-        int status;
-        wait(&status);
-        exitCode = WEXITSTATUS(status);
-        cleanUp();
-        //printShellPrompt();
-    }
-}
 
 void initLexer(FILE *f) {
   int length;
@@ -398,22 +211,3 @@ void finalizeLexer() {
   free(inputbuffer);
   yylex_destroy();
 }
-
-// int main() {
-//     // Initialize program
-//     setbuf(stdin, NULL);
-//     setbuf(stdout, NULL);
-
-//     // Set up some state
-//     state_init();
-    
-//     printShellPrompt();
-//     // Start parsing process
-//     yylex();
-
-//     // Cleanup
-//     fclose(yyin);
-//     yylex_destroy();
-
-//     return EXIT_SUCCESS;
-// }

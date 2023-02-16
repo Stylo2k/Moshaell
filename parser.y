@@ -5,7 +5,9 @@
   #include <stdbool.h>
   #include <math.h>
   #include <string.h>
+  #include "lib.h"
   #include <ctype.h>
+  
 
   void yyerror(char *msg);    /* forward declaration */
   /* exported by the lexer (made with flex) */
@@ -14,13 +16,17 @@
   extern void showErrorLine();
   extern void initLexer(FILE *f);
   extern void finalizeLexer();
+  extern int wasQuotes;
+  
+  void findBinary(char* name);
+
+  extern int exitCode;
+  extern char** commandArgs;
+
+  int isOR = -1;
+  int isAND = -1;
 %}
 
-// %left '+' '-'
-// %left '*' '/' DIV MOD
-// %left OR
-// %left AND
-// %left NOT
 
 %union {
   int ival;     /* used for passing int values from lexer to parser */
@@ -30,23 +36,41 @@
   char* str;
 }
 
-%token EXECUTABLE OPTIONS FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
+%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
+
+%type <str> EXECUTABLE OPTION
+%type <ival> BinOp
+
 %start InputLine
 
 %%
-InputLine : Chain AMP InputLine 
-            | BinOp NEWLINE InputLine
-            | BinOp SEMICOLON InputLine 
+InputLine :   Chain       AMP        InputLine 
+            | BinOp NEWLINE {wasQuotes = 0; printShellPrompt();}    InputLine
+            | BinOp SEMICOLON  InputLine 
             | 
             ;
 
-BinOp : Chain
-        | BinOp OR_OP BinOp
-        | BinOp AND_OP BinOp
+BinOp :    BinOp OR_OP  {isOR = 1;}  BinOp  {isOR = -1; exitCode = $1 || $4; $$ = $1 || $4;}
+        |  BinOp AND_OP {isOR = 0;}  BinOp  {isOR = -1; exitCode = $1 && $4; $$ = $1 && $4;}
+        |  Chain {
+                  if (isOR == -1) { // first time
+                    $$ = execCommand(); 
+                  } else if (isOR && exitCode == EXIT_SUCCESS) {
+                    cleanUp();
+                    $$ = EXIT_SUCCESS;
+                  } else if (isOR && exitCode == EXIT_FAILURE) {
+                    $$ = execCommand();
+                  } else if (!isOR && exitCode == EXIT_SUCCESS) {
+                    $$ = execCommand();
+                  } else if (!isOR && exitCode == EXIT_FAILURE) {
+                    cleanUp();
+                    $$ = EXIT_FAILURE;
+                  }
+                }
         ;
 
 Chain : Pipeline Redirections
-        | BUILTIN OPTIONS
+        | BUILTIN Options
         ;
 
 Redirections : LT FILENAME GT FILENAME
@@ -56,15 +80,21 @@ Redirections : LT FILENAME GT FILENAME
               |
               ;
 
-Pipeline : Command PIPE_OP Pipeline
+Pipeline :  Command PIPE_OP Pipeline
           | Command
           ;
 
-Command: EXECUTABLE Options;
+Command: EXECUTABLE {findBinary($1);} Options ;
 
-Options: OPTIONS | ;
+Options: OPTION {
+                  addOption($1);
+                } 
+        Options
+        |
+        ;
 
 %%
+
 
 void printToken(int token) {
   /* single character tokens */
@@ -83,7 +113,7 @@ void printToken(int token) {
     break;
   case NEWLINE     : printf("NEWLINE");
     break;
-  case OPTIONS: printf("OPTIONS<%s>", yytext);
+  case OPTION: printf("OPTION<%s>", yytext);
     break;
   case FILENAME       : printf("FILENAME<%s>", yytext);
     break;
@@ -107,17 +137,20 @@ void printToken(int token) {
 }
 
 void yyerror (char *msg) {
-  showErrorLine();
-  printToken(yychar);
-  printf(").\n");
-  exit(EXIT_SUCCESS);  /* EXIT_SUCCESS because we use Themis */
+  // showErrorLine();
+  // printToken(yychar);
+  // printf(").\n");
+  printf("Error: invalid syntax!\n");
+  // exit(EXIT_SUCCESS);  /* EXIT_SUCCESS because we use Themis */
+  printShellPrompt();
+  yyparse();
 }
+
 
 int main(int argc, char *argv[]) {
   if (argc > 2) {
     return EXIT_FAILURE;
   }
-
   
   FILE *f = stdin;
   if (argc == 2) {
@@ -126,6 +159,7 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
+  printShellPrompt();
 
   initLexer(f);
   yyparse();

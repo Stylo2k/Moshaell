@@ -1,8 +1,12 @@
 # We construct a separate target for the flex output file lex.yy.c, so that
 # it can be compiled separately. Then in "all" you will combine all other
 # code you might have into a single final executable.
-all: parser lexer
-	gcc -g -O2 parser.o lexer.o -o shell -lfl -lm
+all: parser lexer lib
+	gcc -g -O2 parser.o lexer.o lib.o -o shell -lfl -lm
+
+lib: lib.c
+	gcc -g -O2 -c lib.c
+
 
 mac: parser lexer
 	gcc -g -O2 parser.o lexer.o -ll -lm

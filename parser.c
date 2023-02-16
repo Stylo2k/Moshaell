@@ -75,7 +75,9 @@
   #include <stdbool.h>
   #include <math.h>
   #include <string.h>
+  #include "lib.h"
   #include <ctype.h>
+  
 
   void yyerror(char *msg);    /* forward declaration */
   /* exported by the lexer (made with flex) */
@@ -84,8 +86,17 @@
   extern void showErrorLine();
   extern void initLexer(FILE *f);
   extern void finalizeLexer();
+  extern int wasQuotes;
+  
+  void findBinary(char* name);
 
-#line 89 "parser.tab.c"
+  extern int exitCode;
+  extern char** commandArgs;
+
+  int isOR = -1;
+  int isAND = -1;
+
+#line 100 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -117,7 +128,7 @@ enum yysymbol_kind_t
   YYSYMBOL_YYerror = 1,                    /* error  */
   YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
   YYSYMBOL_EXECUTABLE = 3,                 /* EXECUTABLE  */
-  YYSYMBOL_OPTIONS = 4,                    /* OPTIONS  */
+  YYSYMBOL_OPTION = 4,                     /* OPTION  */
   YYSYMBOL_FILENAME = 5,                   /* FILENAME  */
   YYSYMBOL_AMP = 6,                        /* AMP  */
   YYSYMBOL_AND_OP = 7,                     /* AND_OP  */
@@ -130,12 +141,17 @@ enum yysymbol_kind_t
   YYSYMBOL_NEWLINE = 14,                   /* NEWLINE  */
   YYSYMBOL_YYACCEPT = 15,                  /* $accept  */
   YYSYMBOL_InputLine = 16,                 /* InputLine  */
-  YYSYMBOL_BinOp = 17,                     /* BinOp  */
-  YYSYMBOL_Chain = 18,                     /* Chain  */
-  YYSYMBOL_Redirections = 19,              /* Redirections  */
-  YYSYMBOL_Pipeline = 20,                  /* Pipeline  */
-  YYSYMBOL_Command = 21,                   /* Command  */
-  YYSYMBOL_Options = 22                    /* Options  */
+  YYSYMBOL_17_1 = 17,                      /* $@1  */
+  YYSYMBOL_BinOp = 18,                     /* BinOp  */
+  YYSYMBOL_19_2 = 19,                      /* $@2  */
+  YYSYMBOL_20_3 = 20,                      /* $@3  */
+  YYSYMBOL_Chain = 21,                     /* Chain  */
+  YYSYMBOL_Redirections = 22,              /* Redirections  */
+  YYSYMBOL_Pipeline = 23,                  /* Pipeline  */
+  YYSYMBOL_Command = 24,                   /* Command  */
+  YYSYMBOL_25_4 = 25,                      /* $@4  */
+  YYSYMBOL_Options = 26,                   /* Options  */
+  YYSYMBOL_27_5 = 27                       /* $@5  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -463,16 +479,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  11
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   31
+#define YYLAST   30
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  15
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  8
+#define YYNNTS  13
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  20
+#define YYNRULES  25
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  34
+#define YYNSTATES  40
 
 /* YYMAXUTOK -- Last valid token kind.  */
 #define YYMAXUTOK   269
@@ -522,9 +538,9 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    37,    37,    38,    39,    40,    43,    44,    45,    48,
-      49,    52,    53,    54,    55,    56,    59,    60,    63,    65,
-      65
+       0,    47,    47,    48,    48,    49,    50,    53,    53,    54,
+      54,    55,    72,    73,    76,    77,    78,    79,    80,    83,
+      84,    87,    87,    89,    89,    93
 };
 #endif
 
@@ -540,10 +556,11 @@ static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "\"end of file\"", "error", "\"invalid token\"", "EXECUTABLE",
-  "OPTIONS", "FILENAME", "AMP", "AND_OP", "OR_OP", "SEMICOLON", "BUILTIN",
-  "GT", "LT", "PIPE_OP", "NEWLINE", "$accept", "InputLine", "BinOp",
-  "Chain", "Redirections", "Pipeline", "Command", "Options", YY_NULLPTR
+  "\"end of file\"", "error", "\"invalid token\"", "EXECUTABLE", "OPTION",
+  "FILENAME", "AMP", "AND_OP", "OR_OP", "SEMICOLON", "BUILTIN", "GT", "LT",
+  "PIPE_OP", "NEWLINE", "$accept", "InputLine", "$@1", "BinOp", "$@2",
+  "$@3", "Chain", "Redirections", "Pipeline", "Command", "$@4", "Options",
+  "$@5", YY_NULLPTR
 };
 
 static const char *
@@ -553,7 +570,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-11)
+#define YYPACT_NINF (-14)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -567,10 +584,10 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-       0,    13,    14,    19,    -7,    15,    -3,     7,   -11,   -11,
-     -11,   -11,     0,     0,     0,     0,     0,    17,    18,   -11,
-      21,     4,   -11,     4,   -11,   -11,   -11,    16,    20,   -11,
-      22,    24,   -11,   -11
+      -1,   -14,     6,    12,    -3,    13,    -4,     7,     6,   -14,
+     -14,   -14,   -14,   -14,    -1,   -14,    -1,    18,    19,   -14,
+      22,   -14,     6,    -1,    -1,   -14,    -1,   -14,    14,    16,
+     -14,   -14,     8,   -14,     8,   -14,    23,    24,   -14,   -14
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -578,22 +595,24 @@ static const yytype_int8 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       5,    20,     0,     0,     0,     6,    15,    17,    19,    18,
-      10,     1,     0,     0,     5,     5,     5,     0,     0,     9,
-       0,     8,     6,     7,     4,     3,     2,    13,    14,    16,
-       0,     0,    12,    11
+       6,    21,    25,     0,     0,    11,    18,    20,    25,    23,
+      13,     1,     9,     7,     6,     3,     6,     0,     0,    12,
+       0,    22,    25,     0,     0,     5,     6,     2,    16,    17,
+      19,    24,    10,    11,     8,     4,     0,     0,    15,    14
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -11,   -10,     1,     3,   -11,     5,   -11,   -11
+     -14,   -13,   -14,    -6,   -14,   -14,    -2,   -14,    10,   -14,
+     -14,    -8,   -14
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     3,     4,     5,    19,     6,     7,     9
+       0,     3,    26,     4,    24,    23,     5,    19,     6,     7,
+       8,    10,    22
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -601,44 +620,44 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      12,    13,    14,     1,    24,    25,    26,    15,    17,    18,
-       2,    12,    13,    21,    23,    22,    22,     8,    10,    11,
-      20,    16,    27,    28,     1,    29,     0,    32,    30,    33,
-       0,    31
+      21,    25,     1,    27,    12,    13,    14,    17,    18,     2,
+       9,    15,    11,    35,    31,    12,    13,    32,    34,    16,
+      20,    33,    33,    28,    29,     1,    36,    37,    38,    39,
+      30
 };
 
 static const yytype_int8 yycheck[] =
 {
-       7,     8,     9,     3,    14,    15,    16,    14,    11,    12,
-      10,     7,     8,    12,    13,    12,    13,     4,     4,     0,
-      13,     6,     5,     5,     3,    20,    -1,     5,    12,     5,
-      -1,    11
+       8,    14,     3,    16,     7,     8,     9,    11,    12,    10,
+       4,    14,     0,    26,    22,     7,     8,    23,    24,     6,
+      13,    23,    24,     5,     5,     3,    12,    11,     5,     5,
+      20
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     3,    10,    16,    17,    18,    20,    21,     4,    22,
-       4,     0,     7,     8,     9,    14,     6,    11,    12,    19,
-      13,    17,    18,    17,    16,    16,    16,     5,     5,    20,
-      12,    11,     5,     5
+       0,     3,    10,    16,    18,    21,    23,    24,    25,     4,
+      26,     0,     7,     8,     9,    14,     6,    11,    12,    22,
+      13,    26,    27,    20,    19,    16,    17,    16,     5,     5,
+      23,    26,    18,    21,    18,    16,    12,    11,     5,     5
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    15,    16,    16,    16,    16,    17,    17,    17,    18,
-      18,    19,    19,    19,    19,    19,    20,    20,    21,    22,
-      22
+       0,    15,    16,    17,    16,    16,    16,    19,    18,    20,
+      18,    18,    21,    21,    22,    22,    22,    22,    22,    23,
+      23,    25,    24,    27,    26,    26
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     3,     3,     3,     0,     1,     3,     3,     2,
-       2,     4,     4,     2,     2,     0,     3,     1,     2,     1,
-       0
+       0,     2,     3,     0,     4,     3,     0,     0,     4,     0,
+       4,     1,     2,     2,     4,     4,     2,     2,     0,     3,
+       1,     0,     3,     0,     3,     0
 };
 
 
@@ -1101,8 +1120,72 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
+  case 3: /* $@1: %empty  */
+#line 48 "parser.y"
+                            {wasQuotes = 0; printShellPrompt();}
+#line 1127 "parser.tab.c"
+    break;
 
-#line 1106 "parser.tab.c"
+  case 7: /* $@2: %empty  */
+#line 53 "parser.y"
+                        {isOR = 1;}
+#line 1133 "parser.tab.c"
+    break;
+
+  case 8: /* BinOp: BinOp OR_OP $@2 BinOp  */
+#line 53 "parser.y"
+                                            {isOR = -1; exitCode = (yyvsp[-3].ival) || (yyvsp[0].ival); (yyval.ival) = (yyvsp[-3].ival) || (yyvsp[0].ival);}
+#line 1139 "parser.tab.c"
+    break;
+
+  case 9: /* $@3: %empty  */
+#line 54 "parser.y"
+                        {isOR = 0;}
+#line 1145 "parser.tab.c"
+    break;
+
+  case 10: /* BinOp: BinOp AND_OP $@3 BinOp  */
+#line 54 "parser.y"
+                                            {isOR = -1; exitCode = (yyvsp[-3].ival) && (yyvsp[0].ival); (yyval.ival) = (yyvsp[-3].ival) && (yyvsp[0].ival);}
+#line 1151 "parser.tab.c"
+    break;
+
+  case 11: /* BinOp: Chain  */
+#line 55 "parser.y"
+                 {
+                  if (isOR == -1) { // first time
+                    (yyval.ival) = execCommand(); 
+                  } else if (isOR && exitCode == EXIT_SUCCESS) {
+                    cleanUp();
+                    (yyval.ival) = EXIT_SUCCESS;
+                  } else if (isOR && exitCode == EXIT_FAILURE) {
+                    (yyval.ival) = execCommand();
+                  } else if (!isOR && exitCode == EXIT_SUCCESS) {
+                    (yyval.ival) = execCommand();
+                  } else if (!isOR && exitCode == EXIT_FAILURE) {
+                    cleanUp();
+                    (yyval.ival) = EXIT_FAILURE;
+                  }
+                }
+#line 1171 "parser.tab.c"
+    break;
+
+  case 21: /* $@4: %empty  */
+#line 87 "parser.y"
+                    {findBinary((yyvsp[0].str));}
+#line 1177 "parser.tab.c"
+    break;
+
+  case 23: /* $@5: %empty  */
+#line 89 "parser.y"
+                {
+                  addOption((yyvsp[0].str));
+                }
+#line 1185 "parser.tab.c"
+    break;
+
+
+#line 1189 "parser.tab.c"
 
       default: break;
     }
@@ -1295,7 +1378,8 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 67 "parser.y"
+#line 96 "parser.y"
+
 
 
 void printToken(int token) {
@@ -1315,7 +1399,7 @@ void printToken(int token) {
     break;
   case NEWLINE     : printf("NEWLINE");
     break;
-  case OPTIONS: printf("OPTIONS<%s>", yytext);
+  case OPTION: printf("OPTION<%s>", yytext);
     break;
   case FILENAME       : printf("FILENAME<%s>", yytext);
     break;
@@ -1339,17 +1423,20 @@ void printToken(int token) {
 }
 
 void yyerror (char *msg) {
-  showErrorLine();
-  printToken(yychar);
-  printf(").\n");
-  exit(EXIT_SUCCESS);  /* EXIT_SUCCESS because we use Themis */
+  // showErrorLine();
+  // printToken(yychar);
+  // printf(").\n");
+  printf("Error: invalid syntax!\n");
+  // exit(EXIT_SUCCESS);  /* EXIT_SUCCESS because we use Themis */
+  printShellPrompt();
+  yyparse();
 }
+
 
 int main(int argc, char *argv[]) {
   if (argc > 2) {
     return EXIT_FAILURE;
   }
-
   
   FILE *f = stdin;
   if (argc == 2) {
@@ -1358,6 +1445,7 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
+  printShellPrompt();
 
   initLexer(f);
   yyparse();

@@ -55,7 +55,7 @@ extern int yydebug;
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
     EXECUTABLE = 258,              /* EXECUTABLE  */
-    OPTIONS = 259,                 /* OPTIONS  */
+    OPTION = 259,                  /* OPTION  */
     FILENAME = 260,                /* FILENAME  */
     AMP = 261,                     /* AMP  */
     AND_OP = 262,                  /* AND_OP  */
@@ -74,7 +74,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 25 "parser.y"
+#line 31 "parser.y"
 
   int ival;     /* used for passing int values from lexer to parser */
   double dval;  /* used for passing double values from lexer to parser */
