@@ -4,10 +4,8 @@
   #include <stdarg.h>
   #include <stdbool.h>
   #include <math.h>
-  #include "strtab.h"
   #include <string.h>
   #include <ctype.h>
-  #include "libs/common.h"
 
   void yyerror(char *msg);    /* forward declaration */
   /* exported by the lexer (made with flex) */
@@ -17,8 +15,6 @@
   extern void initLexer(FILE *f);
   extern void finalizeLexer();
 %}
-
-%token
 
 // %left '+' '-'
 // %left '*' '/' DIV MOD
@@ -34,15 +30,81 @@
   char* str;
 }
 
-%token
+%token EXECUTABLE OPTIONS FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
+%start InputLine
+
+%%
+InputLine : Chain AMP InputLine 
+            | BinOp NEWLINE InputLine
+            | BinOp SEMICOLON InputLine 
+            | 
+            ;
+
+BinOp : Chain
+        | BinOp OR_OP BinOp
+        | BinOp AND_OP BinOp
+        ;
+
+Chain : Pipeline Redirections
+        | BUILTIN OPTIONS
+        ;
+
+Redirections : LT FILENAME GT FILENAME
+              | GT FILENAME LT FILENAME
+              | GT FILENAME
+              | LT FILENAME
+              |
+              ;
+
+Pipeline : Command PIPE_OP Pipeline
+          | Command
+          ;
+
+Command: EXECUTABLE Options;
+
+Options: OPTIONS | ;
 
 %%
 
-
-
-
-
-%%
+void printToken(int token) {
+  /* single character tokens */
+  if (token < 256) {
+    if (token < 33) {
+      /* non-printable character */
+      printf("chr(%d)", token);
+    } else {
+      printf("'%c'", token);
+    }
+    return;
+  }
+  /* standard tokens (>255) */
+  switch (token) {
+  case EXECUTABLE   : printf("EXECUTABLE");
+    break;
+  case NEWLINE     : printf("NEWLINE");
+    break;
+  case OPTIONS: printf("OPTIONS<%s>", yytext);
+    break;
+  case FILENAME       : printf("FILENAME<%s>", yytext);
+    break;
+  case AMP     : printf("AMP");
+    break;
+  case AND_OP     : printf("AND_OP");
+    break;
+  case OR_OP : printf("OR_OP");
+    break;
+  case SEMICOLON: printf("SEMICOLON");
+    break;
+  case BUILTIN        : printf("BUILTIN");
+    break;
+  case GT   : printf("GT");
+    break;
+  case LT      : printf("LT");
+    break;
+  case PIPE_OP  : printf("PIPE_OP");
+    break;
+  }
+}
 
 void yyerror (char *msg) {
   showErrorLine();

@@ -1,6 +1,5 @@
-#line 2 "lex.yy.c"
 
-#line 4 "lex.yy.c"
+#line 3 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -352,8 +351,8 @@ static void yynoreturn yy_fatal_error ( const char* msg  );
 	(yy_hold_char) = *yy_cp; \
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
-#define YY_NUM_RULES 15
-#define YY_END_OF_BUFFER 16
+#define YY_NUM_RULES 16
+#define YY_END_OF_BUFFER 17
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -361,22 +360,22 @@ struct yy_trans_info
 	flex_int32_t yy_verify;
 	flex_int32_t yy_nxt;
 	};
-static const flex_int16_t yy_acclist[53] =
+static const flex_int16_t yy_acclist[54] =
     {   0,
-       16,   13,   14,   15,   11,   14,   15,   10,   15,    6,
-       14,   15,   13,   14,   15,    9,   14,   15,   14,   15,
-       13,   14,   15,   13,   14,   15,   14,   15,    2,   15,
-        1,   15,    4,   15,    3,   15,   13,   11,    7,   13,
-       13,   13,    8,    2,   13,   13,    5,   13,   13,   13,
-       13,   12
+       17,   14,   15,   16,   12,   15,   16,   11,   16,    6,
+       15,   16,    8,   14,   15,   16,   10,   15,   16,   15,
+       16,   14,   15,   16,   14,   15,   16,   15,   16,    2,
+       16,    1,   16,    4,   16,    3,   16,   14,   12,    7,
+       14,   14,   14,    9,    2,   14,   14,    5,   14,   14,
+       14,   14,   13
     } ;
 
 static const flex_int16_t yy_accept[38] =
     {   0,
         1,    1,    1,    1,    1,    1,    1,    2,    5,    8,
-       10,   13,   16,   19,   21,   24,   27,   29,   31,   33,
-       35,   37,   38,   39,   41,   42,   43,   44,   45,   46,
-       47,   49,   50,   51,   52,   53,   53
+       10,   13,   17,   20,   22,   25,   28,   30,   32,   34,
+       36,   38,   39,   40,   42,   43,   44,   45,   46,   47,
+       48,   50,   51,   52,   53,   54,   54
     } ;
 
 static const YY_CHAR yy_ec[256] =
@@ -482,6 +481,7 @@ char *yytext;
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "parser.tab.h"
 
 void execCommand();
 void addOption(char* option);
@@ -497,12 +497,28 @@ char** commandArgs = NULL;
 int exitCode = 0;
 int prev = 0;
 
+int linenr = 1;
+int colnr  = 1;
+
+static char *inputbuffer;
+
+static void eat() {
+  char *s;
+  for (s=yytext; *s; s++) {
+    // if (*s == '\n') {
+    //   linenr++;
+    //   colnr = 0;
+    // } 
+    colnr++;
+  }
+}
+
 
 //////////// Here you can put some helper functions and code, but make sure to properly
 //////////// separate your code in logical "entities" in different files! This helps
 //////////// us grade your code as well.
 
-#line 506 "lex.yy.c"
+#line 522 "lex.yy.c"
 /**
  * Parsing in flex is done based on a series of regexes. Below, we list these regexes
  * in order, flex will try to match the input with these in order. As soon as any regex
@@ -526,7 +542,7 @@ int prev = 0;
 
 /* Here we inform flex to not "look ahead" in stdin beyond what is necessary, to prevent
  * issues with passing stdin to another executable. */
-#line 530 "lex.yy.c"
+#line 546 "lex.yy.c"
 
 #define INITIAL 0
 #define string 1
@@ -751,16 +767,16 @@ YY_DECL
 		}
 
 	{
-#line 60 "shell.l"
+#line 77 "shell.l"
 
-#line 62 "shell.l"
+#line 79 "shell.l"
     /* From here on, comments must be indented! */
 
     /* Here we start with the rules. The highest priority rules are those to accept any
      * symbol when we are reading a string (so in the STRING context). */
     
     /* The first rule is to match the closing " char */
-#line 764 "lex.yy.c"
+#line 780 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -824,14 +840,14 @@ do_action:	/* This label is used only to access EOF actions. */
 	{ /* beginning of action switch */
 case 1:
 YY_RULE_SETUP
-#line 68 "shell.l"
+#line 85 "shell.l"
 BEGIN(INITIAL); /* Return to normal parsing */
 	YY_BREAK
 /* The second rule takes the longest string of characters not being " */
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 71 "shell.l"
+#line 88 "shell.l"
 {
                         /* Here we match any entire string. We should either make this
                          * the command to execute, or store this as an option, or it is
@@ -849,19 +865,19 @@ YY_RULE_SETUP
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 85 "shell.l"
+#line 102 "shell.l"
 BEGIN(INITIAL); /* Return to normal parsing */
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 86 "shell.l"
+#line 103 "shell.l"
 
 	YY_BREAK
 /* From here on, we have only "normal" rules for our parsing */
 /* Built-in commands */
 case 5:
 YY_RULE_SETUP
-#line 91 "shell.l"
+#line 108 "shell.l"
 {
                         /* For built-in command names, make sure that we are not currently
                          * parsing options or some other place where we cannot reasonably
@@ -878,12 +894,12 @@ YY_RULE_SETUP
 /* Other grammar parts */
 case 6:
 YY_RULE_SETUP
-#line 105 "shell.l"
+#line 122 "shell.l"
 BEGIN(string); /* We start reading a string until the next " char */
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 106 "shell.l"
+#line 123 "shell.l"
 {
                         printf("Performing &&\n");
                         operator = AND;
@@ -894,12 +910,23 @@ YY_RULE_SETUP
                         } else{
                             cleanUp();
                         }
+                        //eat();
+                        return AND_OP;
                         //////////// Put your code here!
                     }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 118 "shell.l"
+#line 137 "shell.l"
+{
+                        //eat();
+                        return AMP;
+                        //TODO: add the gt lt
+}
+	YY_BREAK
+case 9:
+YY_RULE_SETUP
+#line 143 "shell.l"
 {
                         printf("Performing ||\n");
                         operator = OR;
@@ -911,13 +938,15 @@ YY_RULE_SETUP
                         else{
                             cleanUp();
                         }
+                        //eat();
+                        return OR_OP;
                         // TODO: check exit code if non zero execute next command
                         //////////// Put your code here!
                     }
 	YY_BREAK
-case 9:
+case 10:
 YY_RULE_SETUP
-#line 132 "shell.l"
+#line 159 "shell.l"
 { 
                         fprintf(stderr, "Performing ;\n");
                         prev = 0;
@@ -925,40 +954,46 @@ YY_RULE_SETUP
                         state = COMMAND_STATE;
                         execCommand();
                         printShellPrompt();
+                        //eat();
+                        return SEMICOLON;
                         //////////// Put your code here!
                     }
 	YY_BREAK
-case 10:
-/* rule 10 can match eol */
+case 11:
+/* rule 11 can match eol */
 YY_RULE_SETUP
-#line 141 "shell.l"
+#line 170 "shell.l"
 {
                         fprintf(stderr, "Performing \\n\n");
                         prev = 0;
                         //TODO: check if we should add an if
                         state = COMMAND_STATE;
-                        execCommand();
-                        printShellPrompt();
+                        //execCommand();
+                        //printShellPrompt();
+                        //eat();
+                        return NEWLINE;
                     }
 	YY_BREAK
-case 11:
+case 12:
 YY_RULE_SETUP
-#line 149 "shell.l"
+#line 180 "shell.l"
 /* Ignore whitespace */
 	YY_BREAK
-case 12:
-/* rule 12 can match eol */
+case 13:
+/* rule 13 can match eol */
 YY_RULE_SETUP
-#line 150 "shell.l"
+#line 181 "shell.l"
 {
         printf("The most recent exit code is: %d.\n", exitCode);
         state = COMMAND_STATE;
         printShellPrompt();
+        //eat();
+        return BUILTIN;
     }
 	YY_BREAK
-case 13:
+case 14:
 YY_RULE_SETUP
-#line 155 "shell.l"
+#line 188 "shell.l"
 {
                         /* Here we match any sequence of characters without whitespace as a
                          * "word" or so. We should either make this the command to execute,
@@ -970,38 +1005,45 @@ YY_RULE_SETUP
                         if (state == COMMAND_STATE) {
                             fprintf(stderr, "COMMAND: %s\n", yytext);
                             findBinary(yytext);
+                            //eat();
+                            state= OPTION_STATE;
+                            return EXECUTABLE;
                         } else if (state == OPTION_STATE) {
                             fprintf(stderr, "OPTION: %s\n", yytext);
                             addOption(yytext);
+                            //eat();
+                            return OPTIONS;
                         } else if (state == FILENAME_STATE) {
                             fprintf(stderr, "FILENAME: %s\n", yytext);
+                            //eat();
+                            return FILENAME;
                         }
                     }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(string):
 case YY_STATE_EOF(error):
-#line 173 "shell.l"
+#line 213 "shell.l"
 {
                         /* At EOF we should unconditionally terminate! */
                         yyterminate();
                     }
 	YY_BREAK
-case 14:
+case 15:
 YY_RULE_SETUP
-#line 177 "shell.l"
+#line 217 "shell.l"
 {
                         /* Error: unknown character! (probably doesn't happen) */
                         fprintf(stdout, "Unrecognized character: %s\n", yytext );
                         BEGIN(error);
                     }
 	YY_BREAK
-case 15:
+case 16:
 YY_RULE_SETUP
-#line 182 "shell.l"
+#line 222 "shell.l"
 ECHO;
 	YY_BREAK
-#line 1005 "lex.yy.c"
+#line 1047 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1977,7 +2019,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 182 "shell.l"
+#line 222 "shell.l"
 
 
 /* All code after the second pair of %% is just plain C where you typically
@@ -2045,7 +2087,7 @@ void findBinary(char* yytext) {
     if (path == NULL) {
         printf("Command not found\n");
         // if the command is not found, we should just ignore it
-        //state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
+        state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
     } else {
         state = OPTION_STATE;
     }
@@ -2122,22 +2164,59 @@ void execCommand() {
     }
 }
 
-int main() {
-    // Initialize program
-    setbuf(stdin, NULL);
-    setbuf(stdout, NULL);
-
-    // Set up some state
-    state_init();
-    
-    printShellPrompt();
-    // Start parsing process
-    yylex();
-
-    // Cleanup
-    fclose(yyin);
-    yylex_destroy();
-
-    return EXIT_SUCCESS;
+void initLexer(FILE *f) {
+  int length;
+  fseek (f, 0, SEEK_END);
+  length = ftell (f);
+  fseek (f, 0, SEEK_SET);
+  inputbuffer = malloc (length+1);
+  inputbuffer[length]='\0';
+  length = fread (inputbuffer, 1, length, f);
+  fseek (f, 0, SEEK_SET);
+  yyin = f;
 }
+
+void showErrorLine() {
+  char *p = inputbuffer;
+  int line = linenr;
+  while ((*p != '\0') && (line > 1)) {
+    line -= (*p == '\n');
+    p++;
+  }
+  printf("line %3d: ", linenr);
+  while ((*p != '\0') && (*p != '\n')) {
+    putchar(*p != '\t' ? *p : ' ');
+    p++;
+  }
+  putchar('\n');
+  printf("---------");
+  for (int i=colnr-strlen(yytext); i>0; i--) {
+    putchar('-');
+  }
+  printf("^\n");
+}
+ 
+void finalizeLexer() {
+  free(inputbuffer);
+  yylex_destroy();
+}
+
+// int main() {
+//     // Initialize program
+//     setbuf(stdin, NULL);
+//     setbuf(stdout, NULL);
+
+//     // Set up some state
+//     state_init();
+    
+//     printShellPrompt();
+//     // Start parsing process
+//     yylex();
+
+//     // Cleanup
+//     fclose(yyin);
+//     yylex_destroy();
+
+//     return EXIT_SUCCESS;
+// }
 

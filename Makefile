@@ -1,16 +1,26 @@
 # We construct a separate target for the flex output file lex.yy.c, so that
 # it can be compiled separately. Then in "all" you will combine all other
 # code you might have into a single final executable.
+all: parser lexer
+	gcc -g -O2 parser.o lexer.o -o shell -lfl -lm
 
-all: lex.yy.c
-	gcc -g lex.yy.c -lfl -o shell
+mac: parser lexer
+	gcc -g -O2 parser.o lexer.o -ll -lm
 
-mac: lex.yy.c
-	gcc lex.yy.c -ll -o shell
+parser: parser.y
+	bison -d -H parser.y
+	mv parser.tab.c parser.c
+	gcc -g -O2 -c parser.c
 
-lex.yy.c: shell.l
-	flex -o lex.yy.c shell.l
+lexer: shell.l
+	flex shell.l
+	mv lex.yy.c lexer.c
+	gcc -g -O2 -c lexer.c
 
 clean:
-	rm -f lex.yy.c
-	rm -f shell
+	rm -f *~
+	rm -f *.o
+	rm -f parser.c
+	rm -f parser.tab.h
+	rm -f lexer.c
+	# rm -f a.out

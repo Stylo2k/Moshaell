@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "parser.tab.h"
 
 void execCommand();
 void addOption(char* option);
@@ -22,6 +23,22 @@ char* commandPath = NULL;
 char** commandArgs = NULL;
 int exitCode = 0;
 int prev = 0;
+
+int linenr = 1;
+int colnr  = 1;
+
+static char *inputbuffer;
+
+static void eat() {
+  char *s;
+  for (s=yytext; *s; s++) {
+    // if (*s == '\n') {
+    //   linenr++;
+    //   colnr = 0;
+    // } 
+    colnr++;
+  }
+}
 
 
 //////////// Here you can put some helper functions and code, but make sure to properly
@@ -112,8 +129,16 @@ int prev = 0;
                         } else{
                             cleanUp();
                         }
+                        //eat();
+                        return AND_OP;
                         //////////// Put your code here!
                     }
+"&"                 {
+                        //eat();
+                        return AMP;
+                        //TODO: add the gt lt
+}
+
 "||"                {
                         printf("Performing ||\n");
                         operator = OR;
@@ -125,6 +150,8 @@ int prev = 0;
                         else{
                             cleanUp();
                         }
+                        //eat();
+                        return OR_OP;
                         // TODO: check exit code if non zero execute next command
                         //////////// Put your code here!
                     }
@@ -135,6 +162,8 @@ int prev = 0;
                         state = COMMAND_STATE;
                         execCommand();
                         printShellPrompt();
+                        //eat();
+                        return SEMICOLON;
                         //////////// Put your code here!
                     }
 \n                  {
@@ -142,14 +171,18 @@ int prev = 0;
                         prev = 0;
                         //TODO: check if we should add an if
                         state = COMMAND_STATE;
-                        execCommand();
-                        printShellPrompt();
+                        //execCommand();
+                        //printShellPrompt();
+                        //eat();
+                        return NEWLINE;
                     }
 [ \t]+              /* Ignore whitespace */
 "status\n"            {
         printf("The most recent exit code is: %d.\n", exitCode);
         state = COMMAND_STATE;
         printShellPrompt();
+        //eat();
+        return BUILTIN;
     }
 [^ ;\t\n\"\^|]+     {
                         /* Here we match any sequence of characters without whitespace as a
@@ -162,11 +195,18 @@ int prev = 0;
                         if (state == COMMAND_STATE) {
                             fprintf(stderr, "COMMAND: %s\n", yytext);
                             findBinary(yytext);
+                            //eat();
+                            state= OPTION_STATE;
+                            return EXECUTABLE;
                         } else if (state == OPTION_STATE) {
                             fprintf(stderr, "OPTION: %s\n", yytext);
                             addOption(yytext);
+                            //eat();
+                            return OPTIONS;
                         } else if (state == FILENAME_STATE) {
                             fprintf(stderr, "FILENAME: %s\n", yytext);
+                            //eat();
+                            return FILENAME;
                         }
                     }
 <<EOF>>             {
@@ -245,7 +285,7 @@ void findBinary(char* yytext) {
     if (path == NULL) {
         printf("Command not found\n");
         // if the command is not found, we should just ignore it
-        //state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
+        state = COMMAND_STATE; //!!!!!!*&^%&%$^%$%&^
     } else {
         state = OPTION_STATE;
     }
@@ -322,21 +362,58 @@ void execCommand() {
     }
 }
 
-int main() {
-    // Initialize program
-    setbuf(stdin, NULL);
-    setbuf(stdout, NULL);
-
-    // Set up some state
-    state_init();
-    
-    printShellPrompt();
-    // Start parsing process
-    yylex();
-
-    // Cleanup
-    fclose(yyin);
-    yylex_destroy();
-
-    return EXIT_SUCCESS;
+void initLexer(FILE *f) {
+  int length;
+  fseek (f, 0, SEEK_END);
+  length = ftell (f);
+  fseek (f, 0, SEEK_SET);
+  inputbuffer = malloc (length+1);
+  inputbuffer[length]='\0';
+  length = fread (inputbuffer, 1, length, f);
+  fseek (f, 0, SEEK_SET);
+  yyin = f;
 }
+
+void showErrorLine() {
+  char *p = inputbuffer;
+  int line = linenr;
+  while ((*p != '\0') && (line > 1)) {
+    line -= (*p == '\n');
+    p++;
+  }
+  printf("line %3d: ", linenr);
+  while ((*p != '\0') && (*p != '\n')) {
+    putchar(*p != '\t' ? *p : ' ');
+    p++;
+  }
+  putchar('\n');
+  printf("---------");
+  for (int i=colnr-strlen(yytext); i>0; i--) {
+    putchar('-');
+  }
+  printf("^\n");
+}
+ 
+void finalizeLexer() {
+  free(inputbuffer);
+  yylex_destroy();
+}
+
+// int main() {
+//     // Initialize program
+//     setbuf(stdin, NULL);
+//     setbuf(stdout, NULL);
+
+//     // Set up some state
+//     state_init();
+    
+//     printShellPrompt();
+//     // Start parsing process
+//     yylex();
+
+//     // Cleanup
+//     fclose(yyin);
+//     yylex_destroy();
+
+//     return EXIT_SUCCESS;
+// }
