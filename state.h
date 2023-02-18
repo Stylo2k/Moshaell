@@ -24,4 +24,11 @@ typedef struct options {
     int numArgs;
 } Options;
 
+
+typedef struct History {
+    char** commands;
+    char*** args;
+    int numCommands;
+} History;
+
 #endif

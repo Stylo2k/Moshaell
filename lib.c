@@ -8,17 +8,20 @@
 #include <stdarg.h>
 #include "state.h"
 #include <stdbool.h>
+#include <termios.h>
 
 extern bool silent;
 WordState state;
 Opera operator = NONE;
+Options* options = NULL;
+History* history = NULL;
 
-char** commandArgs = NULL;
 int exitCode = 0;
 int prev = 0;
 
 void executeBuiltIn(char* name);
 void findBinary(char* name);
+void printPlainPrompt();
 
 void DEBUG(const char *fmt, ...) {
     if (silent) {
@@ -33,19 +36,112 @@ void DEBUG(const char *fmt, ...) {
 }
 
 void cleanUp() {
-    if (!commandArgs) {
+    if (!options) {
         return;
     }
-    int i = 0;
-    while (commandArgs[i]) {
-        free(commandArgs[i]);
-        i++;
+    if (!options->commandArgs) {
+        return;
+    }
+    int max = options->numArgs;
+    char** commandArgs = options->commandArgs;
+    for (int i = 0; i < max; i++) {
+        if (commandArgs[i]) {
+            free(commandArgs[i]);
+        }
     }
     free(commandArgs);
     commandArgs = NULL;
+    free(options);
+    options = NULL;
 }
 
-void printShellPrompt() {
+void printShellPrompt();
+void listenForCtrlL() {
+    int c;   
+    static struct termios oldt, newt;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);          
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+
+    // read the input, if its ctrl + l, clear the screen
+    c = getchar();
+    if (c == 12) {
+        printf("\033[H\033[J");
+        printShellPrompt();
+    } else {
+        ungetc(c, stdin);
+    }
+    /*restore the old settings*/
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+}
+
+void listenForUpArrow() {
+    int c;   
+    static struct termios oldt, newt;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);          
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+
+    // read the input, if its the up arrow, print the previous command
+    // the up arrow characters could be prefixed with some other characters, we need to ignore those
+    // ignore all characters until we get to the up arrow
+    // print the previous command
+    c = getchar();
+    if (c == 27) {
+        c = getchar();
+        if (c == 91) {
+            c = getchar();
+            if (c == 65) {
+                if (history->numCommands > 0) {
+                    // remove all characters inside of the stdin
+                    fflush(stdin);
+                    printf("\033[2K\r");
+                    printPlainPrompt();
+                    // print the previous command
+                    printf("%s", history->commands[history->numCommands - 1]);
+                    // write it to the stdin using ungetc and write
+                    for (int i = strlen(history->commands[history->numCommands - 1]) - 1; i >= 0; i--) {
+                        ungetc(history->commands[history->numCommands - 1][i], stdin);
+                    }
+                    // update the history
+                    history->numCommands--;
+                }
+            }
+        }
+    } else {
+        ungetc(c, stdin);
+    }
+
+    /*restore the old settings*/
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);    
+}
+
+void listForBackspace() {
+    int c;   
+    static struct termios oldt, newt;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);          
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+
+    // read the input, if its the backspace, delete the last character
+    c = getchar();
+    if (c == 127) {
+        printf("\b \b");
+    } else {
+        ungetc(c, stdin);
+    }
+
+    /*restore the old settings*/
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+}
+
+void printPlainPrompt() {
     char* cwd = getcwd(NULL, 0);
     // replace the home directory with a tilde
     char* home = getenv( "HOME" );
@@ -57,7 +153,13 @@ void printShellPrompt() {
         cwd = newCwd;
     }
     // print the username
-    char* user = getenv( "USER" );
+    char* userEnv = getenv( "USER" );
+    char* user = NULL;
+    if (userEnv) {
+        user = malloc(strlen(userEnv) + 1);
+        strcpy(user, userEnv);
+    }
+
     if (!user) {
         // get it from whoami
         FILE* whoami = popen( "whoami" , "r");
@@ -77,26 +179,32 @@ void printShellPrompt() {
     gethostname(hostname, 1023);
     printf("%s:", hostname);
     printf("%s$ ", cwd);
-    free(cwd);
-    free(user);
+    if(cwd) free(cwd);
+    if(user) free(user);
+}
+
+void printShellPrompt() {
+    printPlainPrompt();
+    listenForCtrlL();
+    listenForUpArrow();
+    listForBackspace();
 }
 
 
 void addOption(char* option) {
-    if (commandArgs == NULL) {
-        commandArgs = malloc(sizeof(char**)*2);
-        commandArgs[0] = malloc(1);
-        commandArgs[1] = NULL;
+    if (!options) {
+        options = calloc(sizeof(Options), 1);
+        options->commandArgs = malloc(sizeof(char**)*2);
+        options->numArgs = 1;
+        options->commandArgs[1] = NULL;
     }
-    // start from 1, since 0 is the command
-    int i = 1;
-    while (commandArgs[i] != NULL) {
-        i++;
-    }
-    commandArgs = realloc(commandArgs, sizeof(char**) * (i + 2));
-    commandArgs[i] = malloc(strlen(option) + 1);
-    strcpy(commandArgs[i], option);
-    commandArgs[i + 1] = NULL;
+
+    int i = options->numArgs;
+    options->commandArgs = realloc(options->commandArgs, sizeof(char**) * (i + 2));
+    options->commandArgs[i] = malloc(strlen(option) + 1);
+    strcpy(options->commandArgs[i], option);
+    options->commandArgs[i + 1] = NULL;
+    options->numArgs++;
     if (option) {
         free(option);
     }
@@ -115,7 +223,30 @@ int execCommand(char* command, bool builtIn) {
         return exitCode;
     }
     findBinary(command);
-    char* commandPath = commandArgs[0];
+    // command not found, return 127
+    if (!options || !options->commandArgs || !options->commandArgs[0]) {
+        return 127;
+    }
+
+    if (!history) {
+        history = malloc(sizeof(char*) * 100);
+        history->commands = malloc(sizeof(char**) * 100);
+        history->args = malloc(sizeof(char***) * 100);
+        history->numCommands = 0;
+    }
+
+    // add the command to the history
+    history->commands[history->numCommands] = malloc(strlen(command) + 1);
+    strcpy(history->commands[history->numCommands], command);
+    // history->args[history->numCommands] = malloc(sizeof(char**) * options->numArgs);
+    // for (int i = 0; i < options->numArgs; i++) {
+    //     history->args[history->numCommands][i] = malloc(strlen(options->commandArgs[i]) + 1);
+    //     strcpy(history->args[history->numCommands][i], options->commandArgs[i]);
+    // }
+
+    history->numCommands++;
+
+    char* commandPath = options->commandArgs[0];
 
     int link[2];
 
@@ -124,10 +255,6 @@ int execCommand(char* command, bool builtIn) {
         exit(1);
     }
 
-    // command not found, return 127
-    if (!commandPath) {
-        return 127;
-    }
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -137,7 +264,7 @@ int execCommand(char* command, bool builtIn) {
         // this will be performed by the child process
         // so execute the command
         DEBUG("Exec %s\n", commandPath);
-        execv(commandPath, commandArgs);
+        execv(commandPath, options->commandArgs);
     } else {
         close(link[1]);
         // read the entire output of the command using a for loop
@@ -156,7 +283,9 @@ int execCommand(char* command, bool builtIn) {
         cleanUp();
         
         state = COMMAND_STATE;
-
+        if (command) {
+            free(command);
+        }
         return exitCode;
     }
 }
@@ -189,12 +318,14 @@ void findBinary(char* name) {
 
         if (stat(fullPath, &st) == 0) {
             DEBUG("Command found at %s\n", fullPath);
-            if (commandArgs == NULL) {
-                commandArgs = malloc(sizeof(char**)*2);
-                commandArgs[1] = NULL;
-            } 
-            commandArgs[0] = malloc(strlen(fullPath) + 1);
-            strcpy(commandArgs[0], fullPath);
+            if (!options) {
+                options = malloc(sizeof(Options));
+                options->commandArgs = malloc(sizeof(char**)*2);;
+                options->numArgs = 1;
+                options->commandArgs[1] = NULL;
+            }
+            options->commandArgs[0] = malloc(strlen(fullPath) + 1);
+            strcpy(options->commandArgs[0], fullPath);
 
             if (fullPath) {
                 free(fullPath);
@@ -215,9 +346,9 @@ void findBinary(char* name) {
     } else {
         state = OPTION_STATE;
     }
-    if (name) {
-        free(name);
-    }
+    // if (name) {
+    //     free(name);
+    // }
     if (fullPath) {
         free(fullPath);
     }
@@ -239,14 +370,25 @@ void executeBuiltIn(char* name) {
     }
 
     if (strcmp(name, "cd") == 0) {
-        if (!commandArgs || commandArgs[0] == NULL) {
+        if (!options || !options->commandArgs || options->commandArgs[1] == NULL) {
             exitCode = chdir(getenv("HOME"));
         } else {
-            exitCode = chdir(commandArgs[1]);
+            options->commandArgs[0] = malloc(strlen(name) + 1);
+            strcpy(options->commandArgs[0], name);
+            exitCode = chdir(options->commandArgs[1]);
+            // if the directory does not exist, print an error
+            if (exitCode == -1) {
+                printf("cd: no such file or directory: %s\n", options->commandArgs[1]);
+            }
         }
     }
     if(name) {
         free(name); 
     }
     cleanUp();
+}
+
+
+void clearShell() {
+    printf("\033[2J\033[1;1H");
 }
