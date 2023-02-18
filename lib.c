@@ -14,17 +14,16 @@ char* commandPath = NULL;
 char** commandArgs = NULL;
 int exitCode = 0;
 int prev = 0;
-int wasQuotes = 0;
 
 
 void cleanUp() {
-    free(commandPath);
+    if(commandPath) free(commandPath);
     commandPath = NULL;
     if (!commandArgs) {
         return;
-    }   
+    }
     int i = 0;
-    while (commandArgs[i] != NULL) {
+    while (commandArgs[i]) {
         free(commandArgs[i]);
         i++;
     }
@@ -40,6 +39,11 @@ void printShellPrompt() {
 
 
 void addOption(char* option) {
+    if (commandArgs == NULL) {
+        commandArgs = malloc(sizeof(char**)*2);
+        commandArgs[0] = malloc(1);
+        commandArgs[1] = NULL;
+    }
     // start from 1, since 0 is the command
     int i = 1;
     while (commandArgs[i] != NULL) {
@@ -49,6 +53,9 @@ void addOption(char* option) {
     commandArgs[i] = malloc(strlen(option) + 1);
     strcpy(commandArgs[i], option);
     commandArgs[i + 1] = NULL;
+    if (option) {
+        free(option);
+    }
 }
 
 
@@ -58,20 +65,6 @@ void addOption(char* option) {
  * @return int the exit code of the command
  */
 int execCommand() {
-    // check if the command is "cd" 
-    if (commandArgs && strcmp(commandArgs[0], "/usr/bin/cd") == 0) {
-        int exitCodeLocal = 0;
-        if (commandArgs[1] == NULL) {
-            exitCodeLocal = chdir(getenv("HOME"));
-        } else {
-            exitCodeLocal = chdir(commandArgs[1]);
-        }
-        cleanUp();
-        // printShellPrompt();
-        exitCode = exitCodeLocal;
-        return exitCodeLocal;
-    }
-
     int link[2];
 
     if (pipe(link) == -1) {
@@ -109,12 +102,18 @@ int execCommand() {
         wait(&status);
         exitCode = WEXITSTATUS(status);
         cleanUp();
-        //printShellPrompt();
+        
+        state = COMMAND_STATE;
+
         return exitCode;
     }
 }
 
 void findBinary(char* name) {
+    if (!name) {
+        return;
+    }
+
     // verify that the command is valid, by looking it up in the
     // PATH environment variable
     char* origFullPath = getenv( "PATH" );
@@ -144,13 +143,18 @@ void findBinary(char* name) {
                 strcpy(commandPath, fullPath);
                 if (commandArgs == NULL) {
                     commandArgs = malloc(sizeof(char**)*2);
-                    commandArgs[0] = malloc(strlen(fullPath) + 1);
-                    strcpy(commandArgs[0], fullPath);
                     commandArgs[1] = NULL;
                 } 
+                commandArgs[0] = malloc(strlen(fullPath) + 1);
+                strcpy(commandArgs[0], fullPath);
             }
-
+            if (fullPath) {
+                free(fullPath);
+            }
             break;
+        }
+        if (fullPath) {
+            free(fullPath);
         }
         path = strtok(NULL, ":");
     }
@@ -163,4 +167,38 @@ void findBinary(char* name) {
     } else {
         state = OPTION_STATE;
     }
+    if (name) {
+        free(name);
+    }
+    if (fullPath) {
+        free(fullPath);
+    }
+}
+
+extern int alwaysTrue;
+void executeBuiltIn(char* name) {
+    if (!name) {
+        return;
+    }
+    if (strcmp(name, "status") == 0) {
+        printf("The most recent exit code is: %d.\n", exitCode);
+        alwaysTrue = 1;
+    }
+    
+    if (strcmp(name, "exit") == 0) {
+        cleanUp();
+        exit(0);
+    }
+
+    if (strcmp(name, "cd") == 0) {
+        if (commandArgs[1] == NULL) {
+            exitCode = chdir(getenv("HOME"));
+        } else {
+            exitCode = chdir(commandArgs[1]);
+        }
+    }
+    if(name) {
+        free(name); 
+    }
+    cleanUp();
 }

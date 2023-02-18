@@ -25,6 +25,9 @@
 
   int isOR = -1;
   int isAND = -1;
+  int isBuiltIn = 0;
+  int alwaysTrue = 0;
+  char* latestCMD;
 %}
 
 
@@ -38,30 +41,48 @@
 
 %token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
 
-%type <str> EXECUTABLE OPTION
+%type <str> EXECUTABLE OPTION BUILTIN
 %type <ival> BinOp
 
 %start InputLine
 
 %%
 InputLine :   Chain       AMP        InputLine 
-            | BinOp NEWLINE {wasQuotes = 0; printShellPrompt();}    InputLine
+            | BinOp NEWLINE {printShellPrompt();}    InputLine
             | BinOp SEMICOLON  InputLine 
             | 
             ;
 
-BinOp :    BinOp OR_OP  {isOR = 1;}  BinOp  {isOR = -1; exitCode = $1 || $4; $$ = $1 || $4;}
-        |  BinOp AND_OP {isOR = 0;}  BinOp  {isOR = -1; exitCode = $1 && $4; $$ = $1 && $4;}
-        |  Chain {
+BinOp :    BinOp OR_OP  {isOR = 1;}  BinOp  { isOR = -1; exitCode = alwaysTrue || $1 || $4; isBuiltIn = 0; alwaysTrue = 0; $$ = alwaysTrue || $1 || $4;}
+        |  BinOp AND_OP {isOR = 0;}  BinOp  { isOR = -1; exitCode = alwaysTrue && $1 && $4; isBuiltIn = 0; alwaysTrue = 0; $$ = alwaysTrue && $1 && $4;}
+        |  Chain { 
                   if (isOR == -1) { // first time
-                    $$ = execCommand(); 
+                    if (isBuiltIn) {
+                      executeBuiltIn(latestCMD);
+                      $$ = exitCode;
+                    } else {
+                      findBinary(latestCMD);
+                      $$ = execCommand(); 
+                    }
                   } else if (isOR && exitCode == EXIT_SUCCESS) {
                     cleanUp();
                     $$ = EXIT_SUCCESS;
                   } else if (isOR && exitCode == EXIT_FAILURE) {
-                    $$ = execCommand();
+                    if (isBuiltIn) {
+                      executeBuiltIn(latestCMD);
+                      $$ = exitCode;
+                    } else {
+                      findBinary(latestCMD);
+                      $$ = execCommand(); 
+                    }
                   } else if (!isOR && exitCode == EXIT_SUCCESS) {
-                    $$ = execCommand();
+                    if (isBuiltIn) {
+                      executeBuiltIn(latestCMD);
+                      $$ = exitCode;
+                    } else {
+                      findBinary(latestCMD);
+                      $$ = execCommand(); 
+                    }
                   } else if (!isOR && exitCode == EXIT_FAILURE) {
                     cleanUp();
                     $$ = EXIT_FAILURE;
@@ -70,7 +91,7 @@ BinOp :    BinOp OR_OP  {isOR = 1;}  BinOp  {isOR = -1; exitCode = $1 || $4; $$ 
         ;
 
 Chain : Pipeline Redirections
-        | BUILTIN Options
+        | BUILTIN {latestCMD = $1;} Options {isBuiltIn = 1;}
         ;
 
 Redirections : LT FILENAME GT FILENAME
@@ -84,7 +105,7 @@ Pipeline :  Command PIPE_OP Pipeline
           | Command
           ;
 
-Command: EXECUTABLE {findBinary($1);} Options ;
+Command: EXECUTABLE {latestCMD = $1;} Options;
 
 Options: OPTION {
                   addOption($1);

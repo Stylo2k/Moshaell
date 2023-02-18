@@ -72,7 +72,10 @@ static char *inputbuffer;
                         // Entire string value is available in yytext with length yyleng
                         // Make sure to copy it!
                         // printf("STRING: %s\n", yytext);
-                        yylval.str = yytext;
+                        char* copy = malloc(strlen(yytext) + 1);
+                        strcpy(copy, yytext);
+
+                        yylval.str = copy;
                         fprintf(stderr, "OPTION: %s\n", yytext);
                         return OPTION;
                     }
@@ -93,7 +96,11 @@ static char *inputbuffer;
                          * use REJECT to let flex continue to the next match (as a string,
                          * later on). */
 
-                        exit(0);
+                        char* copy = malloc(strlen(yytext) + 1);
+                        strcpy(copy, yytext);
+                        yylval.str = copy;
+                        state = COMMAND_STATE;
+                        return BUILTIN;
                     }
 
     /* Other grammar parts */
@@ -130,8 +137,21 @@ static char *inputbuffer;
                         return NEWLINE;
                     }
 [ \t]+              /* Ignore whitespace */
-"status"            {
-                        printf("The most recent exit code is: %d.\n", exitCode);
+"cd"                {
+                        
+                        char* copy = malloc(strlen(yytext) + 1);
+                        strcpy(copy, yytext);
+                        yylval.str = copy;
+                        
+                        state = OPTION_STATE;
+                        return BUILTIN;
+                    }
+"status"            {  
+                      // TODO: this might be broken
+                        char* copy = malloc(strlen(yytext) + 1);
+                        strcpy(copy, yytext);
+                        yylval.str = copy;
+
                         state = COMMAND_STATE;
                         return BUILTIN;
                     }
@@ -147,15 +167,19 @@ static char *inputbuffer;
                             fprintf(stderr, "COMMAND: %s\n", yytext);
                             state= OPTION_STATE;
                             
-                            yylval.str = yytext;
+                            char *copy = malloc(strlen(yytext) + 1);
+                            strcpy(copy, yytext);
+
+                            yylval.str = copy;
 
                             return EXECUTABLE;
                         } else if (state == OPTION_STATE) {
                             fprintf(stderr, "OPTION: %s\n", yytext);
                             
-                            yylval.str = yytext;
-                            
-                            // addOption(yytext);
+                            char *copy = malloc(strlen(yytext) + 1);
+                            strcpy(copy, yytext);
+
+                            yylval.str = copy;
                             
                             return OPTION;
                         } else if (state == FILENAME_STATE) {
@@ -179,9 +203,14 @@ void initLexer(FILE *f) {
   int length;
   fseek (f, 0, SEEK_END);
   length = ftell (f);
+  if (length < 0) {
+    return;
+  }
   fseek (f, 0, SEEK_SET);
-  inputbuffer = malloc (length+1);
+  
+  inputbuffer = calloc (length+1, sizeof(char));
   inputbuffer[length]='\0';
+
   length = fread (inputbuffer, 1, length, f);
   fseek (f, 0, SEEK_SET);
   yyin = f;

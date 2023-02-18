@@ -7,5 +7,6 @@ void addOption(char* option);
 void findBinary(char* yytext);
 void printShellPrompt();
 void cleanUp();
+void executeBuiltIn(char* name);
 
 #endif
