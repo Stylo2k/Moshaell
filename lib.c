@@ -120,27 +120,6 @@ void listenForUpArrow() {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);    
 }
 
-void listForBackspace() {
-    int c;   
-    static struct termios oldt, newt;
-
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON);          
-    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
-
-    // read the input, if its the backspace, delete the last character
-    c = getchar();
-    if (c == 127) {
-        printf("\b \b");
-    } else {
-        ungetc(c, stdin);
-    }
-
-    /*restore the old settings*/
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
-}
-
 void printPlainPrompt() {
     char* cwd = getcwd(NULL, 0);
     // replace the home directory with a tilde
@@ -183,11 +162,13 @@ void printPlainPrompt() {
     if(user) free(user);
 }
 
+extern bool experimental;
 void printShellPrompt() {
     printPlainPrompt();
-    listenForCtrlL();
-    listenForUpArrow();
-    listForBackspace();
+    if(experimental) {
+        listenForCtrlL();
+        listenForUpArrow();
+    }
 }
 
 
@@ -238,11 +219,11 @@ int execCommand(char* command, bool builtIn) {
     // add the command to the history
     history->commands[history->numCommands] = malloc(strlen(command) + 1);
     strcpy(history->commands[history->numCommands], command);
-    // history->args[history->numCommands] = malloc(sizeof(char**) * options->numArgs);
-    // for (int i = 0; i < options->numArgs; i++) {
-    //     history->args[history->numCommands][i] = malloc(strlen(options->commandArgs[i]) + 1);
-    //     strcpy(history->args[history->numCommands][i], options->commandArgs[i]);
-    // }
+    history->args[history->numCommands] = malloc(sizeof(char**) * options->numArgs);
+    for (int i = 0; i < options->numArgs; i++) {
+        history->args[history->numCommands][i] = malloc(strlen(options->commandArgs[i]) + 1);
+        strcpy(history->args[history->numCommands][i], options->commandArgs[i]);
+    }
 
     history->numCommands++;
 
@@ -346,9 +327,6 @@ void findBinary(char* name) {
     } else {
         state = OPTION_STATE;
     }
-    // if (name) {
-    //     free(name);
-    // }
     if (fullPath) {
         free(fullPath);
     }

@@ -9,6 +9,7 @@
   #include <ctype.h>
   
   bool silent = true;
+  bool experimental = false;
 
   void yyerror(char *msg);
   extern int yylex(void);
@@ -28,6 +29,8 @@
   char* latestCMD;
 
   int execChain();
+
+  bool nomalizeCode(int code);
 %}
 
 
@@ -51,8 +54,8 @@
 program : InputLine;
 
 InputLine :   Chain     AMP        InputLine 
-            | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1; exitCode = alwaysTrue || $1 || $4; $$ = exitCode;}
-            | Chain AND_OP {isOR = 0;} InputLine {isOR = -1; exitCode = alwaysTrue && $1 && $4; $$ = exitCode;}
+            | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1; exitCode = alwaysTrue || nomalizeCode($1) || nomalizeCode($4); $$ = exitCode;}
+            | Chain AND_OP {isOR = 0;} InputLine {isOR = -1; exitCode = alwaysTrue || (nomalizeCode($1) && nomalizeCode($4)); $$ = exitCode;}
             | Chain SEMICOLON InputLine
             | Chain NEWLINE {printShellPrompt();} InputLine
             | NEWLINE {printShellPrompt();} InputLine {$$ = 0;}
@@ -85,6 +88,10 @@ Options: OPTION {
 
 %%
 
+bool nomalizeCode(int code) {
+  return code == EXIT_FAILURE || code == CMD_NOT_FOUND;
+}
+
 int execChain() {
   int returnCode = 0;
   if (isOR == -1) { // first time
@@ -92,11 +99,11 @@ int execChain() {
   } else if (isOR && exitCode == EXIT_SUCCESS) {
     cleanUp();
     returnCode = EXIT_SUCCESS;
-  } else if (isOR && exitCode == EXIT_FAILURE) {
+  } else if (isOR && nomalizeCode(exitCode)) {
     returnCode = execCommand(latestCMD, isBuiltIn); 
   } else if (!isOR && exitCode == EXIT_SUCCESS) {
     returnCode = execCommand(latestCMD, isBuiltIn); 
-  } else if (!isOR && exitCode == EXIT_FAILURE) {
+  } else if (!isOR && nomalizeCode(exitCode)) {
     cleanUp();
     returnCode = EXIT_FAILURE;
   }
@@ -152,25 +159,33 @@ void printToken(int token) {
 }
 
 void yyerror (char *msg) {
-  // showErrorLine();
-  // printToken(yychar);
-  // printf(").\n");
+  if (!silent) {
+    showErrorLine();
+    printToken(yychar);
+    printf(").\n");
+  }
   printf("Error: invalid syntax!\n");
-  // exit(EXIT_SUCCESS);  /* EXIT_SUCCESS because we use Themis */
   printShellPrompt();
   yyparse();
 }
 
 
 int main(int argc, char *argv[]) {
-  if (argc > 2) {
+  if (argc > 3) {
     return EXIT_FAILURE;
   }
   
   FILE *f = stdin;
   if (argc == 2) {
-    silent = false;
+    if (strcmp(argv[1], "-s") == 0) {
+      silent = true;
+    } else if (strcmp(argv[1], "-v") == 0) {
+      silent = false;
+    } else if (strcmp(argv[1], "-e") == 0) {
+      experimental = true;
+    }
   }
+
   printShellPrompt();
 
   initLexer(f);
