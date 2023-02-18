@@ -28,6 +28,8 @@
   bool alwaysTrue = false;
   char* latestCMD;
 
+  bool quotesContext = false;
+
   int execChain();
 
   bool nomalizeCode(int code);
@@ -58,7 +60,6 @@ InputLine :   Chain     AMP        InputLine
             | Chain AND_OP {isOR = 0;} InputLine {isOR = -1; exitCode = alwaysTrue || (nomalizeCode($1) && nomalizeCode($4)); $$ = exitCode;}
             | Chain SEMICOLON InputLine
             | Chain NEWLINE {printShellPrompt();} InputLine
-            | NEWLINE {printShellPrompt();} InputLine {$$ = 0;}
             | {$$ = 0;}
             ;
 

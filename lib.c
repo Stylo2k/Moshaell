@@ -171,7 +171,7 @@ void printShellPrompt() {
     }
 }
 
-
+extern bool quotesContext;
 void addOption(char* option) {
     if (!options) {
         options = calloc(sizeof(Options), 1);
@@ -182,13 +182,36 @@ void addOption(char* option) {
 
     int i = options->numArgs;
     options->commandArgs = realloc(options->commandArgs, sizeof(char**) * (i + 2));
-    options->commandArgs[i] = malloc(strlen(option) + 1);
-    strcpy(options->commandArgs[i], option);
-    options->commandArgs[i + 1] = NULL;
-    options->numArgs++;
+    
+    if (!options->commandArgs[i]) {
+        options->commandArgs[i] = malloc(strlen(option) + 1);
+        strcpy(options->commandArgs[i], option);
+        options->commandArgs[i + 1] = NULL;
+    } else {
+        char* newOption = malloc(strlen(options->commandArgs[i]) + strlen(option) + 1);
+        strcpy(newOption, options->commandArgs[i]);
+        strcat(newOption, option);
+        free(options->commandArgs[i]);
+        options->commandArgs[i] = newOption;
+    }
+
+    if (!quotesContext) {
+        options->numArgs++;
+    }
+
     if (option) {
         free(option);
     }
+}
+
+void addWhiteSpace() {
+    if (!options) {
+        return;
+    }
+    if (!options->commandArgs) {
+        return;
+    }
+    options->numArgs++;
 }
 
 

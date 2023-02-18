@@ -19,7 +19,7 @@ extern char* commandPath;
 extern char** commandArgs;
 extern int exitCode;
 extern int prev;
-extern int wasQuotes;
+extern bool quotesContext;
 
 int linenr = 1;
 int colnr  = 1;
@@ -33,9 +33,13 @@ static char *inputbuffer;
 %option always-interactive
 
 %%
-<string>"\""        BEGIN(INITIAL);
+<string>"\""        {
+                      quotesContext = false;
+                      BEGIN(INITIAL);
+                    }
 
 <string>[^\"]+      {
+                    quotesContext = true;
                     char* copy = malloc(strlen(yytext) + 1);
                     strcpy(copy, yytext);
 
@@ -76,12 +80,18 @@ static char *inputbuffer;
                         state = COMMAND_STATE;
                         return SEMICOLON;
                     }
+^\n                {
+                        BEGIN(INITIAL);
+                        printShellPrompt();
+                    }
 \n                  {
                         DEBUG("Performing \\n\n");
                         state = COMMAND_STATE;
                         return NEWLINE;
                     }
-[ \t]+              /* Ignore whitespace */
+[ \t]+              {
+                        addWhiteSpace();
+                    }
 "cd"                {
                         
                         char* copy = malloc(strlen(yytext) + 1);
