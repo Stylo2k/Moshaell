@@ -4,15 +4,17 @@
 all: parser lexer lib
 	gcc -g -O2 parser.o lexer.o lib.o -o shell -lfl -lm
 
+
+mac: parser lexer lib
+	gcc -g -O2 parser.o lexer.o lib.o -o shell -ll -lm
+	make clean
+
+
 lib: lib.c
 	gcc -g -O2 -c lib.c
 
-
-mac: parser lexer
-	gcc -g -O2 parser.o lexer.o -ll -lm
-
 parser: parser.y
-	bison -d -H parser.y
+	bison -d parser.y
 	mv parser.tab.c parser.c
 	gcc -g -O2 -c parser.c
 

@@ -18,4 +18,10 @@ typedef enum opera {
     NONE
 } Opera;
 
+
+typedef struct options {
+    char** commandArgs;
+    int numArgs;
+} Options;
+
 #endif

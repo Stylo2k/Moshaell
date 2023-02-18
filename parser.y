@@ -8,26 +8,26 @@
   #include "lib.h"
   #include <ctype.h>
   
+  bool silent = true;
 
-  void yyerror(char *msg);    /* forward declaration */
-  /* exported by the lexer (made with flex) */
+  void yyerror(char *msg);
   extern int yylex(void);
   extern char *yytext;
   extern void showErrorLine();
   extern void initLexer(FILE *f);
   extern void finalizeLexer();
-  extern int wasQuotes;
-  
-  void findBinary(char* name);
-
   extern int exitCode;
   extern char** commandArgs;
+  
+  void findBinary(char* name);
+  void resetFlags();
 
   int isOR = -1;
-  int isAND = -1;
-  int isBuiltIn = 0;
-  int alwaysTrue = 0;
+  bool isBuiltIn = false;
+  bool alwaysTrue = false;
   char* latestCMD;
+
+  int execChain();
 %}
 
 
@@ -42,56 +42,25 @@
 %token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
 
 %type <str> EXECUTABLE OPTION BUILTIN
-%type <ival> BinOp
+%type <ival> InputLine Chain
 
-%start InputLine
+%start program
 
 %%
-InputLine :   Chain       AMP        InputLine 
-            | BinOp NEWLINE {printShellPrompt();}    InputLine
-            | BinOp SEMICOLON  InputLine 
-            | 
+
+program : InputLine;
+
+InputLine :   Chain     AMP        InputLine 
+            | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1; exitCode = alwaysTrue || $1 || $4; $$ = exitCode;}
+            | Chain AND_OP {isOR = 0;} InputLine {isOR = -1; exitCode = alwaysTrue && $1 && $4; $$ = exitCode;}
+            | Chain SEMICOLON InputLine
+            | Chain NEWLINE {printShellPrompt();} InputLine
+            | NEWLINE {printShellPrompt();} InputLine {$$ = 0;}
+            | {$$ = 0;}
             ;
 
-BinOp :    BinOp OR_OP  {isOR = 1;}  BinOp  { isOR = -1; exitCode = alwaysTrue || $1 || $4; isBuiltIn = 0; alwaysTrue = 0; $$ = alwaysTrue || $1 || $4;}
-        |  BinOp AND_OP {isOR = 0;}  BinOp  { isOR = -1; exitCode = alwaysTrue && $1 && $4; isBuiltIn = 0; alwaysTrue = 0; $$ = alwaysTrue && $1 && $4;}
-        |  Chain { 
-                  if (isOR == -1) { // first time
-                    if (isBuiltIn) {
-                      executeBuiltIn(latestCMD);
-                      $$ = exitCode;
-                    } else {
-                      findBinary(latestCMD);
-                      $$ = execCommand(); 
-                    }
-                  } else if (isOR && exitCode == EXIT_SUCCESS) {
-                    cleanUp();
-                    $$ = EXIT_SUCCESS;
-                  } else if (isOR && exitCode == EXIT_FAILURE) {
-                    if (isBuiltIn) {
-                      executeBuiltIn(latestCMD);
-                      $$ = exitCode;
-                    } else {
-                      findBinary(latestCMD);
-                      $$ = execCommand(); 
-                    }
-                  } else if (!isOR && exitCode == EXIT_SUCCESS) {
-                    if (isBuiltIn) {
-                      executeBuiltIn(latestCMD);
-                      $$ = exitCode;
-                    } else {
-                      findBinary(latestCMD);
-                      $$ = execCommand(); 
-                    }
-                  } else if (!isOR && exitCode == EXIT_FAILURE) {
-                    cleanUp();
-                    $$ = EXIT_FAILURE;
-                  }
-                }
-        ;
-
-Chain : Pipeline Redirections
-        | BUILTIN {latestCMD = $1;} Options {isBuiltIn = 1;}
+Chain : Pipeline Redirections {$$ = execChain();}
+        | BUILTIN {latestCMD = $1;} Options {isBuiltIn = true; $$ = execChain();}
         ;
 
 Redirections : LT FILENAME GT FILENAME
@@ -115,6 +84,31 @@ Options: OPTION {
         ;
 
 %%
+
+int execChain() {
+  int returnCode = 0;
+  if (isOR == -1) { // first time
+    returnCode = execCommand(latestCMD, isBuiltIn); 
+  } else if (isOR && exitCode == EXIT_SUCCESS) {
+    cleanUp();
+    returnCode = EXIT_SUCCESS;
+  } else if (isOR && exitCode == EXIT_FAILURE) {
+    returnCode = execCommand(latestCMD, isBuiltIn); 
+  } else if (!isOR && exitCode == EXIT_SUCCESS) {
+    returnCode = execCommand(latestCMD, isBuiltIn); 
+  } else if (!isOR && exitCode == EXIT_FAILURE) {
+    cleanUp();
+    returnCode = EXIT_FAILURE;
+  }
+  resetFlags();
+  return returnCode;
+}
+
+void resetFlags() {
+  isBuiltIn = false;
+  alwaysTrue = false;
+  isOR = -1;
+}
 
 
 void printToken(int token) {
@@ -175,10 +169,7 @@ int main(int argc, char *argv[]) {
   
   FILE *f = stdin;
   if (argc == 2) {
-    f = fopen(argv[1], "r");
-    if (f == NULL) {
-      exit(EXIT_FAILURE);
-    }
+    silent = false;
   }
   printShellPrompt();
 

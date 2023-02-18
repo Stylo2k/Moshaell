@@ -5,20 +5,34 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <stdarg.h>
 #include "state.h"
+#include <stdbool.h>
 
+extern bool silent;
 WordState state;
 Opera operator = NONE;
 
-char* commandPath = NULL;
 char** commandArgs = NULL;
 int exitCode = 0;
 int prev = 0;
 
+void executeBuiltIn(char* name);
+void findBinary(char* name);
+
+void DEBUG(const char *fmt, ...) {
+    if (silent) {
+        return;
+    }
+    char buffer[4096];
+    va_list args;
+    va_start(args, fmt);
+    int rc = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    printf("%s", buffer);
+}
 
 void cleanUp() {
-    if(commandPath) free(commandPath);
-    commandPath = NULL;
     if (!commandArgs) {
         return;
     }
@@ -33,8 +47,38 @@ void cleanUp() {
 
 void printShellPrompt() {
     char* cwd = getcwd(NULL, 0);
+    // replace the home directory with a tilde
+    char* home = getenv( "HOME" );
+    if (home && strncmp(cwd, home, strlen(home)) == 0) {
+        char* newCwd = malloc(strlen(cwd) + 2);
+        strcpy(newCwd, "~");
+        strcat(newCwd, cwd + strlen(home));
+        free(cwd);
+        cwd = newCwd;
+    }
+    // print the username
+    char* user = getenv( "USER" );
+    if (!user) {
+        // get it from whoami
+        FILE* whoami = popen( "whoami" , "r");
+        char buffer[1024];
+        int bytesRead = fread(buffer, 1, 1024, whoami);
+        buffer[bytesRead] = '\0';
+        user = malloc(strlen(buffer) + 1);
+        strcpy(user, buffer);
+        // remove the newline
+        user[strlen(user) - 1] = '\0';
+        pclose(whoami);
+    }
+    printf("%s@", user);
+    // print the hostname
+    char hostname[1024];
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
+    printf("%s:", hostname);
     printf("%s$ ", cwd);
     free(cwd);
+    free(user);
 }
 
 
@@ -64,7 +108,15 @@ void addOption(char* option) {
  * 
  * @return int the exit code of the command
  */
-int execCommand() {
+int execCommand(char* command, bool builtIn) {
+    if (builtIn) {
+        DEBUG("Executing built-in command %s\n", command);
+        executeBuiltIn(command);
+        return exitCode;
+    }
+    findBinary(command);
+    char* commandPath = commandArgs[0];
+
     int link[2];
 
     if (pipe(link) == -1) {
@@ -84,7 +136,7 @@ int execCommand() {
         close(link[1]);
         // this will be performed by the child process
         // so execute the command
-        fprintf(stderr, "Exec %s\n", commandPath);
+        DEBUG("Exec %s\n", commandPath);
         execv(commandPath, commandArgs);
     } else {
         close(link[1]);
@@ -136,18 +188,14 @@ void findBinary(char* name) {
         }
 
         if (stat(fullPath, &st) == 0) {
-            fprintf(stderr, "Command found at %s\n", fullPath);
-            
-            if (commandPath == NULL) {
-                commandPath = malloc(strlen(fullPath) + strlen(name) + 2);
-                strcpy(commandPath, fullPath);
-                if (commandArgs == NULL) {
-                    commandArgs = malloc(sizeof(char**)*2);
-                    commandArgs[1] = NULL;
-                } 
-                commandArgs[0] = malloc(strlen(fullPath) + 1);
-                strcpy(commandArgs[0], fullPath);
-            }
+            DEBUG("Command found at %s\n", fullPath);
+            if (commandArgs == NULL) {
+                commandArgs = malloc(sizeof(char**)*2);
+                commandArgs[1] = NULL;
+            } 
+            commandArgs[0] = malloc(strlen(fullPath) + 1);
+            strcpy(commandArgs[0], fullPath);
+
             if (fullPath) {
                 free(fullPath);
             }
@@ -191,7 +239,7 @@ void executeBuiltIn(char* name) {
     }
 
     if (strcmp(name, "cd") == 0) {
-        if (commandArgs[1] == NULL) {
+        if (!commandArgs || commandArgs[0] == NULL) {
             exitCode = chdir(getenv("HOME"));
         } else {
             exitCode = chdir(commandArgs[1]);
