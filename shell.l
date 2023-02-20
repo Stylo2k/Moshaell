@@ -19,7 +19,7 @@ extern char* commandPath;
 extern char** commandArgs;
 extern int exitCode;
 extern int prev;
-extern bool quotesContext;
+extern int quotesContext;
 
 int linenr = 1;
 int colnr  = 1;
@@ -34,12 +34,12 @@ static char *inputbuffer;
 
 %%
 <string>"\""        {
-                      quotesContext = false;
+                      quotesContext = 2;
                       BEGIN(INITIAL);
                     }
 
 <string>[^\"]+      {
-                    quotesContext = true;
+                    quotesContext = 1;
                     char* copy = malloc(strlen(yytext) + 1);
                     strcpy(copy, yytext);
 
@@ -51,10 +51,19 @@ static char *inputbuffer;
 <error>.
 
 "exit"              {
+                        if (state == OPTION_STATE) {
+                            DEBUG("OPTION: %s\n", yytext);
+                            char *copy = malloc(strlen(yytext) + 1);
+                            strcpy(copy, yytext);
+
+                            yylval.str = copy;
+                            return OPTION;
+                        }
+                        DEBUG("Performing exit\n");
                         char* copy = malloc(strlen(yytext) + 1);
                         strcpy(copy, yytext);
                         yylval.str = copy;
-                        state = COMMAND_STATE;
+                        state = OPTION_STATE;
                         return BUILTIN;
                     }
 
@@ -102,11 +111,19 @@ static char *inputbuffer;
                         return BUILTIN;
                     }
 "status"            {  
+                          if (state == OPTION_STATE) {
+                            DEBUG("OPTION: %s\n", yytext);
+                            char *copy = malloc(strlen(yytext) + 1);
+                            strcpy(copy, yytext);
+
+                            yylval.str = copy;
+                            return OPTION;
+                        }
                         char* copy = malloc(strlen(yytext) + 1);
                         strcpy(copy, yytext);
                         yylval.str = copy;
 
-                        state = COMMAND_STATE;
+                        state = OPTION_STATE;
                         return BUILTIN;
                     }
 [^ ;\t\n\"\^|]+     {
@@ -154,10 +171,8 @@ void initLexer(FILE *f) {
     return;
   }
   fseek (f, 0, SEEK_SET);
-  
-  inputbuffer = calloc (length+1, sizeof(char));
+  inputbuffer = malloc (length+1);
   inputbuffer[length]='\0';
-
   length = fread (inputbuffer, 1, length, f);
   fseek (f, 0, SEEK_SET);
   yyin = f;

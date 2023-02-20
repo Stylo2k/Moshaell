@@ -1,0 +1,10 @@
+status
+echo The previous status should have been 0, the next one should as well
+status
+echo The next ones will all print 56
+bash -c "exit 56"
+status
+status
+echo And now back to 0
+status
+exit

@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <termios.h>
 
+#define BONUS 0
+
 extern bool silent;
 WordState state;
 Opera operator = NONE;
@@ -37,20 +39,29 @@ void DEBUG(const char *fmt, ...) {
 
 void cleanUp() {
     if (!options) {
+        DEBUG("no options to clean up\n");
         return;
     }
     if (!options->commandArgs) {
+        free(options);
+        DEBUG("no command args to clean up\n");
         return;
     }
-    int max = options->numArgs;
-    char** commandArgs = options->commandArgs;
-    for (int i = 0; i < max; i++) {
-        if (commandArgs[i]) {
-            free(commandArgs[i]);
+
+    int i = 0;
+    int max = 0;
+    if (options) max = options->numArgs;
+    while (options && (i < max || options->commandArgs[i] != NULL)) {
+        DEBUG("freeing %s\n", options->commandArgs[i]);
+        if(options->commandArgs[i]){
+            free(options->commandArgs[i]);
         }
+        options->commandArgs[i] = NULL;
+        i++;
     }
-    free(commandArgs);
-    commandArgs = NULL;
+
+    free(options->commandArgs);
+    options->commandArgs = NULL;
     free(options);
     options = NULL;
 }
@@ -164,25 +175,27 @@ void printPlainPrompt() {
 
 extern bool experimental;
 void printShellPrompt() {
-    printPlainPrompt();
-    if(experimental) {
-        listenForCtrlL();
-        listenForUpArrow();
-    }
+    #if BONUS
+        printPlainPrompt();
+        if(experimental) {
+            listenForCtrlL();
+            listenForUpArrow();
+        }
+    #endif
 }
 
-extern bool quotesContext;
+extern int quotesContext;
 void addOption(char* option) {
     if (!options) {
         options = calloc(sizeof(Options), 1);
         options->commandArgs = malloc(sizeof(char**)*2);
+        options->commandArgs[0] = NULL;
         options->numArgs = 1;
         options->commandArgs[1] = NULL;
     }
 
     int i = options->numArgs;
     options->commandArgs = realloc(options->commandArgs, sizeof(char**) * (i + 2));
-    
     if (!options->commandArgs[i]) {
         options->commandArgs[i] = malloc(strlen(option) + 1);
         strcpy(options->commandArgs[i], option);
@@ -193,9 +206,10 @@ void addOption(char* option) {
         strcat(newOption, option);
         free(options->commandArgs[i]);
         options->commandArgs[i] = newOption;
+        options->commandArgs[i + 1] = NULL;
     }
 
-    if (!quotesContext) {
+    if (quotesContext != 1) {
         options->numArgs++;
     }
 
@@ -211,27 +225,16 @@ void addWhiteSpace() {
     if (!options->commandArgs) {
         return;
     }
-    options->numArgs++;
+    
+    if(quotesContext) {
+        printf("adding whitespace to quotes context\n");
+        options->numArgs++;
+    }
+    quotesContext = 0;
 }
 
 
-/**
- * @brief Execute the command 
- * 
- * @return int the exit code of the command
- */
-int execCommand(char* command, bool builtIn) {
-    if (builtIn) {
-        DEBUG("Executing built-in command %s\n", command);
-        executeBuiltIn(command);
-        return exitCode;
-    }
-    findBinary(command);
-    // command not found, return 127
-    if (!options || !options->commandArgs || !options->commandArgs[0]) {
-        return 127;
-    }
-
+void addToHistory(char* command) {
     if (!history) {
         history = malloc(sizeof(char*) * 100);
         history->commands = malloc(sizeof(char**) * 100);
@@ -249,36 +252,45 @@ int execCommand(char* command, bool builtIn) {
     }
 
     history->numCommands++;
+}
+
+/**
+ * @brief Execute the command 
+ * 
+ * @return int the exit code of the command
+ */
+extern bool alwaysTrue;
+int execCommand(char* command, bool builtIn) {
+    if (builtIn) {
+        DEBUG("Executing built-in command %s\n", command);
+        executeBuiltIn(command);
+        state = COMMAND_STATE;
+        cleanUp();
+        return exitCode;
+    }
+    alwaysTrue = false;
+    findBinary(command);
+    // command not found, return 127
+    if (!options || !options->commandArgs || !options->commandArgs[0]) {
+        if(command) {
+            free(command);
+        }
+        cleanUp();
+        state = COMMAND_STATE;
+        return 127;
+    }
+
+    // addToHistory(command);
 
     char* commandPath = options->commandArgs[0];
 
-    int link[2];
-
-    if (pipe(link) == -1) {
-        perror("pipe");
-        exit(1);
-    }
-
-
     pid_t pid = fork();
     if (pid == 0) {
-        dup2(link[1], STDOUT_FILENO);
-        close(link[0]);
-        close(link[1]);
         // this will be performed by the child process
         // so execute the command
         DEBUG("Exec %s\n", commandPath);
         execv(commandPath, options->commandArgs);
     } else {
-        close(link[1]);
-        // read the entire output of the command using a for loop
-        char buffer[1024];
-        int bytesRead = 0;
-        while ((bytesRead = read(link[0], buffer, 1024)) > 0) {
-            buffer[bytesRead] = '\0';
-            printf("%s", buffer);
-        }
-
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
         int status;
@@ -299,13 +311,20 @@ void findBinary(char* name) {
         return;
     }
 
+    if (strcmp(name, "") == 0) {
+        return;
+    }
+
     // verify that the command is valid, by looking it up in the
     // PATH environment variable
     char* origFullPath = getenv( "PATH" );
     
     // we need to make a copy of the original string, since its a pointer
-    char* fullPath = malloc(strlen(origFullPath) + 1);
+    // get the cwd
+    char* fullPath = malloc(strlen(origFullPath) + 4);
     strcpy(fullPath, origFullPath);
+    strcat(fullPath, ":");
+    strcat(fullPath, ".");
 
     char* path = strtok(fullPath, ":");
     struct stat st;
@@ -325,6 +344,7 @@ void findBinary(char* name) {
             if (!options) {
                 options = malloc(sizeof(Options));
                 options->commandArgs = malloc(sizeof(char**)*2);;
+                options->commandArgs[0] = NULL;
                 options->numArgs = 1;
                 options->commandArgs[1] = NULL;
             }
@@ -355,14 +375,14 @@ void findBinary(char* name) {
     }
 }
 
-extern int alwaysTrue;
+extern bool alwaysTrue;
 void executeBuiltIn(char* name) {
     if (!name) {
         return;
     }
     if (strcmp(name, "status") == 0) {
-        printf("The most recent exit code is: %d.\n", exitCode);
-        alwaysTrue = 1;
+        printf("The most recent exit code is: %d\n", exitCode);
+        alwaysTrue = true;
     }
     
     if (strcmp(name, "exit") == 0) {
