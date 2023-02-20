@@ -19,7 +19,6 @@ extern char* commandPath;
 extern char** commandArgs;
 extern int exitCode;
 extern int prev;
-extern int quotesContext;
 
 int linenr = 1;
 int colnr  = 1;
@@ -34,12 +33,10 @@ static char *inputbuffer;
 
 %%
 <string>"\""        {
-                      quotesContext = 2;
                       BEGIN(INITIAL);
                     }
 
 <string>[^\"]+      {
-                    quotesContext = 1;
                     char* copy = malloc(strlen(yytext) + 1);
                     strcpy(copy, yytext);
 
@@ -99,7 +96,7 @@ static char *inputbuffer;
                         return NEWLINE;
                     }
 [ \t]+              {
-                        addWhiteSpace();
+
                     }
 "cd"                {
                         

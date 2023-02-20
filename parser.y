@@ -28,8 +28,6 @@
   bool alwaysTrue = false;
   char* latestCMD;
 
-  int quotesContext = 0;
-
   int execChain();
 
 %}

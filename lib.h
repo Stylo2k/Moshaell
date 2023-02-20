@@ -13,6 +13,5 @@ void printShellPrompt();
 void cleanUp();
 void executeBuiltIn(char* name);
 void DEBUG(const char *fmt, ...);
-void addWhiteSpace();
 
 #endif

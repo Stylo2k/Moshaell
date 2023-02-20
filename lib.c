@@ -184,7 +184,6 @@ void printShellPrompt() {
     #endif
 }
 
-extern int quotesContext;
 void addOption(char* option) {
     if (!options) {
         options = calloc(sizeof(Options), 1);
@@ -209,30 +208,12 @@ void addOption(char* option) {
         options->commandArgs[i + 1] = NULL;
     }
 
-    if (quotesContext != 1) {
-        options->numArgs++;
-    }
+    options->numArgs++;
 
     if (option) {
         free(option);
     }
 }
-
-void addWhiteSpace() {
-    if (!options) {
-        return;
-    }
-    if (!options->commandArgs) {
-        return;
-    }
-    
-    if(quotesContext) {
-        printf("adding whitespace to quotes context\n");
-        options->numArgs++;
-    }
-    quotesContext = 0;
-}
-
 
 void addToHistory(char* command) {
     if (!history) {
