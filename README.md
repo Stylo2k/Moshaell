@@ -14,3 +14,10 @@
     - Press Ctrl + L and see the magic happen.
   - Previous commands
     - Press the up arrow key to see the previous commands.
+
+- Ideas :
+  - make a .themis_history where we can see the history of the commands that we have used.
+  - make a .themisrc where we can see the configuration of the shell.
+    - support aliases
+  - support own syntax of a minimal programing language
+  - 
