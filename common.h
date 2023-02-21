@@ -13,9 +13,11 @@
 #include <termios.h>
 #include <ctype.h>
 
-#include "lib.h"
-#include "lexer.h"
+#define CMD_NOT_FOUND 127
+
 #include "types.h"
+#include "libs/libs.common.h"
+#include "lexer.h"
 #include "parser.tab.h"
 
 typedef enum yylval_type {
@@ -25,7 +27,10 @@ typedef enum yylval_type {
 } YylvalType;
 
 
-static bool silent = true;
-static bool experimental = false;
+extern bool silent;
+extern bool experimental;
+extern bool alwaysTrue;
+extern int exitCode;
+extern bool alwaysTrue;
 
 #endif

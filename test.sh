@@ -1,3 +1,10 @@
+# if there is not ./shell, then compile it
+if [ ! -f ./shell ]; then
+    make clean
+    make
+fi
+
+printf "\n\n=====================================\nTesting shell...\n=====================================\n"
 diff <(valgrind --error-exitcode=111 --leak-check=full ./shell < tests/1.in 2> /dev/null) tests/1.out
 diff <(valgrind --error-exitcode=111 --leak-check=full ./shell < tests/2.in 2> /dev/null) tests/2.out
 diff <(valgrind --error-exitcode=111 --leak-check=full ./shell < tests/3.in 2> /dev/null) tests/3.out

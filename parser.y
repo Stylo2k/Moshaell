@@ -12,6 +12,9 @@
   extern WordState state;
   int execChain();
 
+  bool silent;
+  bool experimental;
+
 %}
 
 
@@ -41,7 +44,7 @@ InputLine :   Chain     AMP        InputLine
             ;
 
 End :       SEMICOLON
-            | NEWLINE
+            | NEWLINE {printShellPrompt();}
             | SEMICOLON NEWLINE
             ;
 
@@ -190,13 +193,18 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   
+  silent = true;
+  experimental = false;
+
   FILE *f = stdin;
   if (argc == 2) {
     if (strcmp(argv[1], "-s") == 0) {
       silent = true;
     } else if (strcmp(argv[1], "-v") == 0) {
+      printf("Running in verbose mode\n");
       silent = false;
     } else if (strcmp(argv[1], "-e") == 0) {
+      printf("Running in experimental mode\n");
       experimental = true;
     }
   }
