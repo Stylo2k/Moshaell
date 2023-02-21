@@ -1,29 +1,14 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <stdarg.h>
-#include "state.h"
-#include <stdbool.h>
-#include <termios.h>
+#include "common.h"
 
 #define BONUS 0
 
-extern bool silent;
-WordState state;
-Opera operator = NONE;
 Options* options = NULL;
 History* history = NULL;
+static int exitCode = 0;
+static bool alwaysTrue = false;
 
-int exitCode = 0;
-int prev = 0;
-
-void executeBuiltIn(char* name);
-void findBinary(char* name);
-void printPlainPrompt();
+#define DONT_CLEAN_PREV 0
+#define CLEAN_PREV 1
 
 void DEBUG(const char *fmt, ...) {
     if (silent) {
@@ -49,8 +34,8 @@ void cleanUp() {
     }
 
     int i = 0;
-    int max = 0;
-    if (options) max = options->numArgs;
+    int max = options->numArgs;
+
     while (options && (i < max || options->commandArgs[i] != NULL)) {
         DEBUG("freeing %s\n", options->commandArgs[i]);
         if(options->commandArgs[i]){
@@ -66,7 +51,7 @@ void cleanUp() {
     options = NULL;
 }
 
-void printShellPrompt();
+// @experimental
 void listenForCtrlL() {
     int c;   
     static struct termios oldt, newt;
@@ -88,6 +73,7 @@ void listenForCtrlL() {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
 }
 
+// @experimental
 void listenForUpArrow() {
     int c;   
     static struct termios oldt, newt;
@@ -173,7 +159,7 @@ void printPlainPrompt() {
     if(user) free(user);
 }
 
-extern bool experimental;
+
 void printShellPrompt() {
     #if BONUS
         printPlainPrompt();
@@ -184,13 +170,23 @@ void printShellPrompt() {
     #endif
 }
 
+void newOptions(bool cleanPrevious) {
+    if (cleanPrevious && options) {
+        cleanUp();
+    }
+    if (cleanPrevious && !options) {
+        DEBUG("Trying to clean the previous, but no prev exists\n");
+    }
+    options = calloc(sizeof(Options), 1);
+    options->commandArgs = malloc(sizeof(char**)*2);
+    options->commandArgs[0] = NULL;
+    options->numArgs = 1;
+    options->commandArgs[1] = NULL;
+}
+
 void addOption(char* option) {
     if (!options) {
-        options = calloc(sizeof(Options), 1);
-        options->commandArgs = malloc(sizeof(char**)*2);
-        options->commandArgs[0] = NULL;
-        options->numArgs = 1;
-        options->commandArgs[1] = NULL;
+        newOptions(DONT_CLEAN_PREV);
     }
 
     int i = options->numArgs;
@@ -200,11 +196,9 @@ void addOption(char* option) {
         strcpy(options->commandArgs[i], option);
         options->commandArgs[i + 1] = NULL;
     } else {
-        char* newOption = malloc(strlen(options->commandArgs[i]) + strlen(option) + 1);
-        strcpy(newOption, options->commandArgs[i]);
-        strcat(newOption, option);
-        free(options->commandArgs[i]);
-        options->commandArgs[i] = newOption;
+        //realloc the old one to include the new option
+        options->commandArgs[i] = realloc(options->commandArgs[i], strlen(options->commandArgs[i]) + strlen(option) + 2);
+        strcat(options->commandArgs[i], option);
         options->commandArgs[i + 1] = NULL;
     }
 
@@ -215,12 +209,22 @@ void addOption(char* option) {
     }
 }
 
+void newHistory(bool cleanPrevious) {
+    if (cleanPrevious && history) {
+        cleanUp();
+    }
+    if (cleanPrevious && !history) {
+        DEBUG("Trying to clean the previous, but no prev exists\n");
+    }
+    history = malloc(sizeof(char*) * 100);
+    history->commands = malloc(sizeof(char**) * 100);
+    history->args = malloc(sizeof(char***) * 100);
+    history->numCommands = 0;
+}
+
 void addToHistory(char* command) {
     if (!history) {
-        history = malloc(sizeof(char*) * 100);
-        history->commands = malloc(sizeof(char**) * 100);
-        history->args = malloc(sizeof(char***) * 100);
-        history->numCommands = 0;
+        newHistory(DONT_CLEAN_PREV);
     }
 
     // add the command to the history
@@ -240,12 +244,10 @@ void addToHistory(char* command) {
  * 
  * @return int the exit code of the command
  */
-extern bool alwaysTrue;
 int execCommand(char* command, bool builtIn) {
     if (builtIn) {
         DEBUG("Executing built-in command %s\n", command);
         executeBuiltIn(command);
-        state = COMMAND_STATE;
         cleanUp();
         return exitCode;
     }
@@ -257,11 +259,10 @@ int execCommand(char* command, bool builtIn) {
             free(command);
         }
         cleanUp();
-        state = COMMAND_STATE;
         return 127;
     }
 
-    // addToHistory(command);
+    if (experimental) addToHistory(command);
 
     char* commandPath = options->commandArgs[0];
 
@@ -279,12 +280,25 @@ int execCommand(char* command, bool builtIn) {
         exitCode = WEXITSTATUS(status);
         cleanUp();
         
-        state = COMMAND_STATE;
-        if (command) {
-            free(command);
-        }
+        if (command) free(command);
         return exitCode;
     }
+}
+
+void setExitCode(int code) {
+    exitCode = code;
+}
+
+int getExitCode() {
+    return exitCode;
+}
+
+bool isAlwaysTrue() {
+    return alwaysTrue;
+}
+
+void setAlwaysTrue(bool value) {
+    alwaysTrue = value;
 }
 
 void findBinary(char* name) {
@@ -304,42 +318,35 @@ void findBinary(char* name) {
     // get the cwd
     char* fullPath = malloc(strlen(origFullPath) + 4);
     strcpy(fullPath, origFullPath);
+    // add the current directory to the path
     strcat(fullPath, ":");
     strcat(fullPath, ".");
 
     char* path = strtok(fullPath, ":");
     struct stat st;
     while (path != NULL) {
-        char* fullPath = malloc(strlen(path) + strlen(name) + 2);
+        char* cmdPath = malloc(strlen(path) + strlen(name) + 2);
         if (name[0] == '~' || name[0] == '.' || name[0] == '/') {
             // absolute path so just use the name
-            strcpy(fullPath, name);
+            strcpy(cmdPath, name);
         } else {
-            strcpy(fullPath, path);
-            strcat(fullPath, "/");
-            strcat(fullPath, name);
+            strcpy(cmdPath, path);
+            strcat(cmdPath, "/");
+            strcat(cmdPath, name);
         }
 
-        if (stat(fullPath, &st) == 0) {
-            DEBUG("Command found at %s\n", fullPath);
+        if (stat(cmdPath, &st) == 0) {
+            DEBUG("Command found at %s\n", cmdPath);
             if (!options) {
-                options = malloc(sizeof(Options));
-                options->commandArgs = malloc(sizeof(char**)*2);;
-                options->commandArgs[0] = NULL;
-                options->numArgs = 1;
-                options->commandArgs[1] = NULL;
+                newOptions(DONT_CLEAN_PREV);
             }
-            options->commandArgs[0] = malloc(strlen(fullPath) + 1);
-            strcpy(options->commandArgs[0], fullPath);
+            options->commandArgs[0] = malloc(strlen(cmdPath) + 1);
+            strcpy(options->commandArgs[0], cmdPath);
 
-            if (fullPath) {
-                free(fullPath);
-            }
+            if (cmdPath) free(cmdPath);
             break;
         }
-        if (fullPath) {
-            free(fullPath);
-        }
+        if (cmdPath) free(cmdPath);
         path = strtok(NULL, ":");
     }
     
@@ -347,16 +354,12 @@ void findBinary(char* name) {
         printf("Error: command not found!\n");
         // if the command is not found, we should just ignore it
         exitCode = 127;
-        state = COMMAND_STATE;
-    } else {
-        state = OPTION_STATE;
     }
-    if (fullPath) {
-        free(fullPath);
-    }
+
+    if (fullPath) free(fullPath);
 }
 
-extern bool alwaysTrue;
+
 void executeBuiltIn(char* name) {
     if (!name) {
         return;
@@ -368,6 +371,8 @@ void executeBuiltIn(char* name) {
     
     if (strcmp(name, "exit") == 0) {
         cleanUp();
+        finalizeLexer();
+        free(name);
         exit(0);
     }
 

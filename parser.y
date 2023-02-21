@@ -1,43 +1,23 @@
 %{
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <stdarg.h>
-  #include <stdbool.h>
-  #include <math.h>
-  #include <string.h>
-  #include "lib.h"
-  #include <ctype.h>
+  #include "common.h"
   
-  bool silent = true;
-  bool experimental = false;
-
-  void yyerror(char *msg);
-  extern int yylex(void);
-  extern char *yytext;
-  extern void showErrorLine();
-  extern void initLexer(FILE *f);
-  extern void finalizeLexer();
-  extern int exitCode;
-  extern char** commandArgs;
-  
-  void findBinary(char* name);
   void resetFlags();
+  
+  extern char *yytext;
+  void yyerror(char *msg);
 
   int isOR = -1;
   bool isBuiltIn = false;
-  bool alwaysTrue = false;
   char* latestCMD;
-
+  extern WordState state;
   int execChain();
 
 %}
 
 
 %union {
-  int ival;     /* used for passing int values from lexer to parser */
-  double dval;  /* used for passing double values from lexer to parser */
-  /* add here anything you may need */
-  /*....*/  
+  int ival;     
+  double dval;  
   char* str;
 }
 
@@ -53,21 +33,31 @@
 program : InputLine;
 
 InputLine :   Chain     AMP        InputLine 
-            | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1;alwaysTrue = false;}
-            | Chain AND_OP {isOR = 0;} InputLine {isOR = -1;alwaysTrue = false;}
-            | Chain End InputLine {isOR = -1; alwaysTrue = false; $$ = $1;}
-            | Chain {isOR = -1; alwaysTrue = false; $$ = $1;}
-            | {isOR = -1; alwaysTrue = false; $$ = 0;}
+            | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1;setAlwaysTrue(false);}
+            | Chain AND_OP {isOR = 0;} InputLine {isOR = -1;setAlwaysTrue(false);}
+            | Chain End InputLine {isOR = -1; setAlwaysTrue(false); $$ = $1;}
+            | Chain {isOR = -1; setAlwaysTrue(false); $$ = $1;}
+            | {isOR = -1; setAlwaysTrue(false); $$ = 0;}
             ;
 
-End : SEMICOLON
-      | NEWLINE
-      | SEMICOLON NEWLINE
-      ;
+End :       SEMICOLON
+            | NEWLINE
+            | SEMICOLON NEWLINE
+            ;
 
-Chain :   Pipeline Redirections {$$ = execChain();}
-        | BUILTIN {latestCMD = $1;} Options {isBuiltIn = true; $$ = execChain();}
-        ;
+Chain :     Pipeline Redirections                         {
+                                                            $$ = execChain();
+                                                            resetFlags();
+                                                          }
+            | BUILTIN                                     {
+                                                            latestCMD = $1;
+                                                          }
+            Options                                       {
+                                                            isBuiltIn = true;
+                                                            $$ = execChain();
+                                                            resetFlags();
+                                                          }
+            ;
 
 Redirections : LT FILENAME GT FILENAME
               | GT FILENAME LT FILENAME
@@ -80,7 +70,10 @@ Pipeline :  Command PIPE_OP Pipeline
           | Command
           ;
 
-Command: EXECUTABLE {latestCMD = $1;} Options;
+Command: EXECUTABLE {
+                      latestCMD = $1;
+                    }
+         Options;
 
 Options: OPTION { 
                     addOption($1);
@@ -96,36 +89,46 @@ bool failureExitCode(int code) {
 }
 
 bool successExitCode(int code) {
-  return code == EXIT_SUCCESS || alwaysTrue;
+  return code == EXIT_SUCCESS || isAlwaysTrue();
 }
 
 int execChain() {
+  int exitCode = getExitCode();
+  bool alwaysTrue = isAlwaysTrue();
+
   DEBUG("isOR: %d isBuiltIn: %d alwaysTrue: %d exitCode: %d latestCMD: %s\n", isOR, isBuiltIn, alwaysTrue, exitCode, latestCMD);
-  int returnCode = 0;
+
   if (isOR == -1) { // first time
-    returnCode = execCommand(latestCMD, isBuiltIn);
-  } else if (isOR && successExitCode(exitCode)) {
-    if (latestCMD) free(latestCMD);
-    latestCMD = NULL;
-    cleanUp();
-    returnCode = EXIT_SUCCESS;
-  } else if (isOR && failureExitCode(exitCode)) {
-    returnCode = execCommand(latestCMD, isBuiltIn); 
-  } else if (!isOR && successExitCode(exitCode)) {
-    returnCode = execCommand(latestCMD, isBuiltIn); 
-  } else if (!isOR && failureExitCode(exitCode)) {
-    if (latestCMD) free(latestCMD);
-    latestCMD = NULL;
-    cleanUp();
-    returnCode = EXIT_FAILURE;
+    return execCommand(latestCMD, isBuiltIn);
   }
-  resetFlags();
-  return returnCode;
+
+  if(isOR && successExitCode(exitCode)) {
+    if (latestCMD) free(latestCMD);
+    latestCMD = NULL;
+    cleanUp();
+    return EXIT_SUCCESS;
+  }
+
+  if (isOR && failureExitCode(exitCode)) {
+    return execCommand(latestCMD, isBuiltIn); 
+  }
+  
+  if (!isOR && successExitCode(exitCode)) {
+    return execCommand(latestCMD, isBuiltIn); 
+  }
+  
+  if (!isOR && failureExitCode(exitCode)) {
+    if (latestCMD) free(latestCMD);
+    latestCMD = NULL;
+    cleanUp();
+    return EXIT_FAILURE;
+  }
 }
 
 void resetFlags() {
   isBuiltIn = false;
   isOR = -1;
+  state = COMMAND_STATE;
 }
 
 
@@ -176,7 +179,7 @@ void yyerror (char *msg) {
     // printf(").\n");
   }
   printf("Error: invalid syntax!\n");
-  exitCode = EXIT_FAILURE;
+  setExitCode(EXIT_FAILURE);
   printShellPrompt();
   yyparse();
 }

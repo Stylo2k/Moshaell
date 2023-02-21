@@ -1,30 +1,14 @@
 %{
-// Headers for use in this file
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <stdbool.h>
-#include "lib.h"
-#include "state.h"
-#include "parser.tab.h"
+#include "common.h"
 
 extern WordState state;
-extern Opera operator;
-
-extern char* commandPath;
-extern char** commandArgs;
-extern int exitCode;
-extern int prev;
 
 int linenr = 1;
 int colnr  = 1;
-
 static char *inputbuffer;
 
+WordState state = COMMAND_STATE;
+void setYYlval(void *obj, YylvalType type);
 %}
 
 %x string error
@@ -37,10 +21,7 @@ static char *inputbuffer;
                     }
 
 <string>[^\"]+      {
-                    char* copy = malloc(strlen(yytext) + 1);
-                    strcpy(copy, yytext);
-
-                    yylval.str = copy;
+                    setYYlval(yytext, YYVAL_STRING);
                     DEBUG("OPTION: %s\n", yytext);
                     return OPTION;
                     }
@@ -50,16 +31,11 @@ static char *inputbuffer;
 "exit"              {
                         if (state == OPTION_STATE) {
                             DEBUG("OPTION: %s\n", yytext);
-                            char *copy = malloc(strlen(yytext) + 1);
-                            strcpy(copy, yytext);
-
-                            yylval.str = copy;
+                            setYYlval(yytext, YYVAL_STRING);
                             return OPTION;
                         }
                         DEBUG("Performing exit\n");
-                        char* copy = malloc(strlen(yytext) + 1);
-                        strcpy(copy, yytext);
-                        yylval.str = copy;
+                        setYYlval(yytext, YYVAL_STRING);
                         state = OPTION_STATE;
                         return BUILTIN;
                     }
@@ -67,7 +43,6 @@ static char *inputbuffer;
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 "&&"                {
-                        operator = AND;
                         state = COMMAND_STATE;
                         return AND_OP;
                     }
@@ -77,7 +52,6 @@ static char *inputbuffer;
 }
 
 "||"                {
-                        operator = OR;
                         state = COMMAND_STATE;
                         return OR_OP;
                     }
@@ -99,49 +73,30 @@ static char *inputbuffer;
 
                     }
 "cd"                {
-                        
-                        char* copy = malloc(strlen(yytext) + 1);
-                        strcpy(copy, yytext);
-                        yylval.str = copy;
-                        
-                        state = OPTION_STATE;
-                        return BUILTIN;
+                     // TODO: this has to change, we are better off by just calling the builtin from here   
+                      setYYlval(yytext, YYVAL_STRING);
+                      state = OPTION_STATE;
+                      return BUILTIN;
                     }
 "status"            {  
-                          if (state == OPTION_STATE) {
-                            DEBUG("OPTION: %s\n", yytext);
-                            char *copy = malloc(strlen(yytext) + 1);
-                            strcpy(copy, yytext);
-
-                            yylval.str = copy;
-                            return OPTION;
-                        }
-                        char* copy = malloc(strlen(yytext) + 1);
-                        strcpy(copy, yytext);
-                        yylval.str = copy;
-
-                        state = OPTION_STATE;
-                        return BUILTIN;
+                      if (state == OPTION_STATE) {
+                        DEBUG("OPTION: %s\n", yytext);
+                        setYYlval(yytext, YYVAL_STRING);
+                        return OPTION;
+                      }
+                      setYYlval(yytext, YYVAL_STRING);
+                      state = OPTION_STATE;
+                      return BUILTIN;
                     }
 [^ ;\t\n\"\^|]+     {
                         if (state == COMMAND_STATE) {
                             DEBUG("COMMAND: %s\n", yytext);
                             state= OPTION_STATE;
-                            
-                            char *copy = malloc(strlen(yytext) + 1);
-                            strcpy(copy, yytext);
-
-                            yylval.str = copy;
-
+                            setYYlval(yytext, YYVAL_STRING);
                             return EXECUTABLE;
                         } else if (state == OPTION_STATE) {
                             DEBUG("OPTION: %s\n", yytext);
-                            
-                            char *copy = malloc(strlen(yytext) + 1);
-                            strcpy(copy, yytext);
-
-                            yylval.str = copy;
-                            
+                            setYYlval(yytext, YYVAL_STRING);
                             return OPTION;
                         } else if (state == FILENAME_STATE) {
                             DEBUG("FILENAME: %s\n", yytext);
@@ -159,6 +114,29 @@ static char *inputbuffer;
                     }
 %%
 
+/**
+  * This function is called by the lexer when it has found a token.
+  * It sets the yylval variable to the correct value. 
+  * @param obj The object to set the yylval to
+  * @param type The type of the object
+  */
+void setYYlval(void *obj, YylvalType type) {
+  // obj is generic pointer, so we need to cast it to the correct type
+  
+  if(type == YYVAL_STRING) {
+    char* strObj = (char*) obj;
+    char *str = malloc(strlen(strObj) + 1);
+    strcpy(str, strObj);
+    yylval.str = str;
+  } else if (type == YYVAL_DOUBLE) {
+    yylval.dval = *((double *) obj);
+  } else if (type == YYVAL_INT) {
+    yylval.ival = *((int *) obj);
+  } else {
+    fprintf(stderr, "Unknown YylvalType: %d\n", type);
+    exit(1);
+  }
+}
 
 void initLexer(FILE *f) {
   int length;
@@ -198,4 +176,5 @@ void showErrorLine() {
 void finalizeLexer() {
   free(inputbuffer);
   yylex_destroy();
+  yyterminate();
 }

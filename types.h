@@ -12,12 +12,6 @@ typedef enum wordState {
     END
 } WordState;
 
-typedef enum opera {
-    AND,
-    OR,
-    NONE
-} Opera;
-
 
 typedef struct options {
     char** commandArgs;
