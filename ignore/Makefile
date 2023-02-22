@@ -1,12 +1,11 @@
 # We construct a separate target for the flex output file lex.yy.c, so that
 # it can be compiled separately. Then in "all" you will combine all other
 # code you might have into a single final executable.
-.PHONY: libs
-
 all: parser lexer libs
 	mkdir -p build
 	mv *.o build
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -lfl -lm
+	# make clean
 
 mac: parser lexer lib
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm
@@ -17,7 +16,8 @@ parser: parser.y
 	mv parser.tab.c parser.c
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c parser.c
 
-libs:
+# libs rule. Which compiles all the c files in the libs folder
+libs: libs/*.c
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c libs/*.c
 
 
@@ -34,3 +34,4 @@ clean:
 	rm -f parser.tab.h
 	rm -f lexer.c
 	rm -f vgcore*
+	# rm -f a.out
