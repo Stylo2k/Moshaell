@@ -1,0 +1,10 @@
+arg: /usr/bin/ls
+arg: /usr/bin/ls
+arg: -l
+arg: /usr/bin/ls
+arg: -al
+arg: /usr/bin/ls
+arg: -a
+args is null
+args is null
+args is null

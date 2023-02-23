@@ -24,7 +24,7 @@ void executeBuiltIn(char* name) {
     }
 
     if (strcmp(name, "cd") == 0) {
-        if (noOptions(DONT_INCLUDE_BIN_PATH)) {
+        if (noOptions()) {
             exitCode = chdir(getenv("HOME"));
         } else {
             addBinPathToOptions(name);
@@ -114,7 +114,7 @@ int execCommand(char* command, bool builtIn) {
     alwaysTrue = false;
     findBinary(command);
     // command not found, return 127
-    if (noOptions(INCLUDE_BIN_PATH)) {
+    if (noCommand()) {
         if(command) {
             free(command);
         }

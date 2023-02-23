@@ -1,69 +1,43 @@
 #include "../common.h"
 
-// @experimental
-void listenForCtrlL() {
-    int c;   
-    static struct termios oldt, newt;
 
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON);          
-    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+char* inputBuffer = NULL;
+int MAX_BUFFER = 100;
+int BUFFER_INDEX = 0;
 
-    // read the input, if its ctrl + l, clear the screen
-    c = getchar();
-    if (c == 12) {
-        printf("\033[H\033[J");
-        printShellPrompt();
-    } else {
-        ungetc(c, stdin);
-    }
-    /*restore the old settings*/
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+static struct termios   save_termios;
+static int              term_saved;
+
+// shamelessly stolen from https://www.gnu.org/software/libc/manual/html_node/Noncanon-Example.html
+int tty_raw(int fd) {       /* RAW! mode */
+    struct termios  buf;
+
+    if (tcgetattr(fd, &save_termios) < 0) /* get the original state */
+        return -1;
+
+    buf = save_termios;
+
+    buf.c_lflag &= ~(ECHO | ICANON);
+                    /* echo off, canonical mode off, extended input
+                       processing off, signal chars off */
+
+    if (tcsetattr(fd, TCSAFLUSH, &buf) < 0)
+        return -1;
+
+    term_saved = 1;
+
+    return 0;
 }
 
-// @experimental
-void listenForUpArrow() {
-    int c;   
-    static struct termios oldt, newt;
 
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON);          
-    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+int tty_reset(int fd) { /* set it to normal! */
+    if (term_saved)
+        if (tcsetattr(fd, TCSAFLUSH, &save_termios) < 0)
+            return -1;
 
-    // read the input, if its the up arrow, print the previous command
-    // the up arrow characters could be prefixed with some other characters, we need to ignore those
-    // ignore all characters until we get to the up arrow
-    // print the previous command
-    c = getchar();
-    if (c == 27) {
-        c = getchar();
-        if (c == 91) {
-            c = getchar();
-            if (c == 65) {
-                if (anyHistory()) {
-                    // remove all characters inside of the stdin
-                    fflush(stdin);
-                    printf("\033[2K\r");
-                    printPlainPrompt();
-                    // print the previous command
-                    char** mostRecentCmd = getMostRecent();
-                    printf("%s", mostRecentCmd);
-                    // write it to the stdin using ungetc and write
-                    for (int i = strlen(mostRecentCmd) - 1; i >= 0; i--) {
-                        ungetc(mostRecentCmd[i], stdin);
-                    }
-                }
-            }
-        }
-    } else {
-        ungetc(c, stdin);
-    }
-
-    /*restore the old settings*/
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);    
+    return 0;
 }
+
 
 void printPlainPrompt() {
     char* cwd = getcwd(NULL, 0);
@@ -107,38 +81,207 @@ void printPlainPrompt() {
     if(user) free(user);
 }
 
+void newInputBuffer() {
+    inputBuffer = calloc(MAX_BUFFER, sizeof(char));
+}
+
+void freeInputBuffer() {
+    if (inputBuffer) {
+        free(inputBuffer);
+        inputBuffer = NULL;
+        BUFFER_INDEX = 0;
+        MAX_BUFFER = 100;
+    }
+}
+
+void addInputToBuffer(char input) {
+    if (!inputBuffer) {
+        newInputBuffer();
+    }
+    if (BUFFER_INDEX >= MAX_BUFFER) {
+        MAX_BUFFER *= 2;
+        inputBuffer = realloc(inputBuffer, MAX_BUFFER);
+    }
+    inputBuffer[BUFFER_INDEX] = input;
+    BUFFER_INDEX++;
+}
+
+// @experimental
+// Char : 12
+void listenForCtrlL() {
+    printf("\033[H\033[J");
+    printPlainPrompt();
+}
+
+// @experimental
+void listenForUpArrow() {
+    char* history = getPrevHistory();
+    char** args = getPrevHistoryArgs();
+    if (history) {
+        printf("\033[H\033[J");
+        printPlainPrompt();
+        // put history in the stdin stream using ungetc
+        // also put the args in the stdin stream
+        if (args) {
+            for (int i = 1; args[i]; i++) {
+                if(!args[i]) break;
+                for (int j = strlen(args[i]) - 1; j >= 0; j--) {
+                    if(!args[i][j]) break;
+                    ungetc(args[i][j], stdin);
+                }
+                ungetc(' ', stdin);
+            }
+        } else {
+            ungetc(' ', stdin);
+            fprintf(stderr, "args is null\n");
+        }
+        for (int i = strlen(history) - 1; i >= 0; i--) {
+            ungetc(history[i], stdin);
+        }
+    }
+}
+
+void listenForDownArrow() {
+    char* history = getNextHistory();
+    char** args = getNextHistoryArgs();
+    if (history) {
+        printf("\033[H\033[J");
+        printPlainPrompt();
+        // put history in the stdin stream using ungetc
+        // also put the args in the stdin stream
+        if (args) {
+            for (int i = 1; args[i]; i++) {
+                if(!args[i]) break;
+                for (int j = strlen(args[i]) - 1; j >= 0; j--) {
+                    if(!args[i][j]) break;
+                    ungetc(args[i][j], stdin);
+                }
+                ungetc(' ', stdin);
+            }
+        } else {
+            ungetc(' ', stdin);
+        }
+        for (int i = strlen(history) - 1; i >= 0; i--) {
+            if(!history[i]) break;
+            ungetc(history[i], stdin);
+        }
+    }
+}
+
+int removeLastCharFromBuffer() {
+    bool removed = false;
+    if (BUFFER_INDEX > 0) {
+        BUFFER_INDEX--;
+        inputBuffer[BUFFER_INDEX] = '\0';
+        removed = true;
+    }
+    return removed;
+}
+
+
+// Char : 127
 void listForBackspace() {
-    int c;   
-    static struct termios oldt, newt;
+    // remove the last character from the input buffer
+    if(!removeLastCharFromBuffer()) {
+        fprintf(stderr, "z\n");
+        return;
+    }
+    fprintf(stderr, "x\n");
+    // remove the last character from the screen
+    printf("\b \b");
+}
 
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON);          
-    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+int newLineCallBack() {
+    ungetc('\n', stdin);
+    printf("\n");
+}
 
-    // read the input, if its the backspace, delete the last character
-    c = getchar();
-    if (c == 127) {
-        printf("\b \b");
+void ctrlCCallBack() {
+    printf("ctrl-c pressed\n");
+    exit(0);
+}
+
+
+bool listenOneKey(int char_, void (*callback)()) {
+    tty_raw(STDIN_FILENO);
+    int c = getchar();
+    if (c == char_) {
+        tty_reset(STDIN_FILENO);
+        (*callback)();
+        return true;
     } else {
         ungetc(c, stdin);
     }
-
-    /*restore the old settings*/
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+    tty_reset(STDIN_FILENO);
+    return false;
 }
 
+
+bool listenForSeqKeys(int* char_, int size, void (*callback)()) {
+    // match the sequence of keys in the char_ array
+    char* buffer = calloc(size, sizeof(char));
+    tty_raw(STDIN_FILENO);
+    for (int i = 0; i < size; i++) {
+        int c = getchar();
+        if (c != char_[i]) {
+            // put the characters back in the stdin stream
+            ungetc(c, stdin);
+            for (int j = i - 1; j >= 0; j--) {
+                ungetc(buffer[j], stdin);
+            }
+            tty_reset(STDIN_FILENO);
+            free(buffer);
+            return false;
+        }
+        buffer[i] = c;
+    }
+    tty_reset(STDIN_FILENO);
+    // put the buffer here into the addInputToBuffer
+    for (int i = 0; i < size; i++) {
+        addInputToBuffer(buffer[i]);
+    }
+    free(buffer);
+    (*callback)();
+    return true;
+}
 
 
 void printShellPrompt() {
     if(experimental) {
         printPlainPrompt();
-        listForBackspace();
-        listenForCtrlL();
-        listenForUpArrow();
-    }
-}
+        int id = 0;
+        while (true) {
+            if(listenForSeqKeys((int[]){27, 91, 65}, 3, listenForUpArrow)) {
+                freeInputBuffer();
+                continue;
+            }
+            if(listenForSeqKeys((int[]){27, 91, 66}, 3, listenForDownArrow)) {
+                freeInputBuffer();
+                continue;
+            }
+            if(listenOneKey(12, listenForCtrlL)) {
+                freeInputBuffer();
+                continue;
+            }
+            if(listenOneKey(127, listForBackspace)) {
+                continue;
+            }
 
-void clearShell() {
-    printf("\033[2J\033[1;1H");
+            if(listenOneKey(10, newLineCallBack)) {
+                // write the entire input buffer to the stdin using ungetc
+                for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
+                    ungetc(inputBuffer[i], stdin);
+                }
+                freeInputBuffer();
+                break;
+            }
+            // consume the stdin
+            tty_raw(STDIN_FILENO);
+            int c = getchar();
+            tty_reset(STDIN_FILENO);
+            // put it in the input buffer
+            addInputToBuffer(c);
+            printf("%c", c);
+        }
+    }
 }

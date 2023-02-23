@@ -5,7 +5,9 @@ void newHistory(bool cleanPrevious);
 void addToHistory(char* command);
 int getNumberOfHistoryCommands();
 bool anyHistory();
-char** getMostRecent();
+char* getMostRecent();
 char** getHistoryAt(int index);
+char** getArgsOfMostRecent();
+char** getArgsOfHistoryAt(int index);
 
 #endif

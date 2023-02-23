@@ -90,11 +90,12 @@ void addBinPathToOptions(char* bin) {
 }
 
 
-bool noOptions(bool includeBinPath) {
+bool noCommand() {
+    return !options || !options->commandArgs || !options->commandArgs[0];
+}
+
+bool noOptions() {
     bool here = !options || !options->commandArgs;
-    if (includeBinPath) {
-        return here || !options->commandArgs[0];
-    } 
     return here || !options->commandArgs[1];
 }
 
