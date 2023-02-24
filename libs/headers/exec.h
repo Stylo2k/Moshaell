@@ -8,5 +8,6 @@ bool isAlwaysTrue();
 void setAlwaysTrue(bool value);
 void setExitCode(int code);
 int getExitCode();
+bool doesBinaryExist(char* name);
 
 #endif

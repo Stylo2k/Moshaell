@@ -28,6 +28,15 @@ make
     - editing these commands is possible.
   - History
     - history command will show you the history of the commands that you have used.
+  - Correct Binary highlighting
+    - If the binary is found in the path, it will be highlighted in green. Otherwise, it will be highlighted in red.
+  - Configuration files to change the prompt (heavily customizable shell, an example is already included in the repository)
+    - name_color
+    - name_start
+    - host_name_color
+    - path_color
+    - prompt_start
+    - prompt_start_color
 
 - Ideas :
   - make a .themis_history where we can see the history of the commands that we have used.

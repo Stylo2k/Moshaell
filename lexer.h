@@ -8,5 +8,6 @@ int yylex(void);
 void showErrorLine();
 void initLexer(FILE *f);
 void readConfigFile();
+bool readingCommand();
 
 #endif

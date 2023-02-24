@@ -45,6 +45,61 @@ void executeBuiltIn(char* name) {
     cleanUp();
 }
 
+bool doesBinaryExist(char* name) {
+    if (!name) {
+        return false;
+    }
+    if (strcmp(name, "") == 0) {
+        return false;
+    }
+    
+    char* localName = malloc(strlen(name) + 1);
+    strcpy(localName, name);
+
+
+    // verify that the command is valid, by looking it up in the
+    // PATH environment variable
+    char* origFullPath = getenv( "PATH" );
+    
+    // we need to make a copy of the original string, since its a pointer
+    // get the cwd
+    char* fullPath = malloc(strlen(origFullPath) + 4);
+    strcpy(fullPath, origFullPath);
+    // add the current directory to the path
+    strcat(fullPath, ":");
+    strcat(fullPath, ".");
+
+    char* path = strtok(fullPath, ":");
+    struct stat st;
+    while (path != NULL) {
+        char* cmdPath = malloc(strlen(path) + strlen(name) + 2);
+        if (name[0] == '~' || name[0] == '.' || name[0] == '/') {
+            // absolute path so just use the name
+            strcpy(cmdPath, name);
+        } else {
+            strcpy(cmdPath, path);
+            strcat(cmdPath, "/");
+            strcat(cmdPath, name);
+        }
+
+        if (stat(cmdPath, &st) == 0) {
+            if (cmdPath) free(cmdPath);
+            break;
+        }
+        if (cmdPath) free(cmdPath);
+        path = strtok(NULL, ":");
+    }
+    
+    if (path == NULL) {
+        return false;
+    }
+
+    if (fullPath) free(fullPath);
+
+    if (localName) free(localName);
+    return true;
+}
+
 void findBinary(char* name) {
     if (!name) {
         return;

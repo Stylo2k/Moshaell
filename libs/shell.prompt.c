@@ -183,7 +183,7 @@ void listenForUpArrow() {
         if (args) {
             for (int i = nrArgs; i >= 1; i--) {
                 if(!args[i]) {
-                    fprintf(stderr, "args[%d] is null\n", i);
+                    DEBUG("args[%d] is null\n", i);
                     break;
                 }
                 for (int j = strlen(args[i]) - 1; j >= 0; j--) {
@@ -217,7 +217,7 @@ void listenForDownArrow() {
         if (args) {
             for (int i = nrArgs; i >= 1; i--) {
                 if(!args[i]) {
-                    fprintf(stderr, "args[%d] is null\n", i);
+                    DEBUG("args[%d] is null\n", i);
                     break;
                 }
                 for (int j = strlen(args[i]) - 1; j >= 0; j--) {
@@ -341,10 +341,36 @@ bool listenForSeqKeys(int* char_, int size, void (*callback)(), bool addToBuffer
     return true;
 }
 
+void rightBin() {
+    printStartOfLine();
+    printf("\033[0;32m");
+    printf("%s", inputBuffer);
+    printf("\033[0m");
+}
+
+void wrongBin() {
+    printStartOfLine();
+    printf("\033[0;31m");
+    printf("%s", inputBuffer);
+    printf("\033[0m");
+}
+
+void checkBin(bool* alreadyReadBin) {
+    bool binExists = doesBinaryExist(inputBuffer);
+
+    if(readingCommand() && binExists) {
+        // remove the text then print the color green
+        rightBin();
+    } else if(readingCommand() && !(*alreadyReadBin) && !binExists) {
+        // remove the text and print the color red
+        wrongBin();
+    }
+}
 
 void printShellPrompt() {
     if(experimental) {
         printPlainPrompt();
+        bool alreadyReadBin = false;
         while (true) {
             if(listenForSeqKeys((int[]){27, 91, 65}, 3, listenForUpArrow, ADD_TO_BUFFER)) {
                 freeInputBuffer();
@@ -371,6 +397,8 @@ void printShellPrompt() {
                 break;
             }
             if(listenForOneKey(127, listenForBackspace)) {
+                alreadyReadBin = false;
+                checkBin(&alreadyReadBin);
                 continue;
             }
 
@@ -391,6 +419,13 @@ void printShellPrompt() {
             // put it in the input buffer
             addInputToBuffer(c);
             printf("%c", c);
+
+            // if the char is a space reset the alreadyReadBin
+            if(c == ' ') {
+                alreadyReadBin = true;
+            }
+            
+            checkBin(&alreadyReadBin);
         }
     }
 }

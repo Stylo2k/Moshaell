@@ -190,6 +190,10 @@ void finalizeLexer() {
   yyterminate();
 }
 
+bool readingCommand() {
+  return state == COMMAND_STATE;
+}
+
 // void readConfigFile() {
 //   // try and find the config file locally
 //   FILE *f = fopen(".sheeshrc", "r");
