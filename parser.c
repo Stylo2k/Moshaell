@@ -1515,6 +1515,10 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   
+  // our submission could be run in silent mode, verbose mode, or experimental mode
+  // however the experimental mode is removed for now, since it was a requirement for the bonus submission
+  // to have the EXT_PROMPT
+
   silent = true;
   experimental = false;
 

@@ -126,7 +126,11 @@ int execCommand(char* command, bool builtIn) {
         return 127;
     }
 
-    if (experimental) addToHistory(command);
+    #if EXT_PROMPT
+    // if (experimental) {
+        addToHistory(command);
+    // }
+    #endif
 
     char* commandPath = getBinPath();
 
