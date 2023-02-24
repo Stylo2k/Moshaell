@@ -9,7 +9,7 @@ static char *inputbuffer;
 
 WordState state = COMMAND_STATE;
 void setYYlval(void *obj, YylvalType type);
-void readConfigFile();
+
 %}
 
 %x string error
@@ -190,28 +190,28 @@ void finalizeLexer() {
   yyterminate();
 }
 
-void readConfigFile() {
-  // try and find the config file locally
-  FILE *f = fopen(".sheeshrc", "r");
-  if (f == NULL) {
-    DEBUG("No config file found\n");
-    // try and find the config file in the home directory
-    char *home = getenv("HOME");
-    if (home == NULL) {
-      return;
-    }
-    char *path = malloc(strlen(home) + strlen("/.sheeshrc") + 1);
-    strcpy(path, home);
-    strcat(path, "/.sheeshrc");
-    f = fopen(path, "r");
-    if (f == NULL) {
-      DEBUG("No config file found\n");
-      return;
-    } else {
-      DEBUG("Reading config file from %s\n", path);
-    }
-    free(path);
-  } else {
-    DEBUG("Reading config file from .sheeshrc\n");
-  }
-}
+// void readConfigFile() {
+//   // try and find the config file locally
+//   FILE *f = fopen(".sheeshrc", "r");
+//   if (f == NULL) {
+//     DEBUG("No config file found\n");
+//     // try and find the config file in the home directory
+//     char *home = getenv("HOME");
+//     if (home == NULL) {
+//       return;
+//     }
+//     char *path = malloc(strlen(home) + strlen("/.sheeshrc") + 1);
+//     strcpy(path, home);
+//     strcat(path, "/.sheeshrc");
+//     f = fopen(path, "r");
+//     if (f == NULL) {
+//       DEBUG("No config file found\n");
+//       return;
+//     } else {
+//       DEBUG("Reading config file from %s\n", path);
+//     }
+//     free(path);
+//   } else {
+//     DEBUG("Reading config file from .sheeshrc\n");
+//   }
+// }

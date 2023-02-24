@@ -44,11 +44,14 @@ int tty_reset(int fd) { /* set it to normal! */
 
 void printStartOfLine() {
     printf("\33[2K\r");
-    printf("-> ");
+    // print the color from getPromptStartColor
+    getPromptStartColor();
+    printf("%s ", getPromptStart());
+    // print the reset color
+    resetColor();
 }
 
-void printPlainPrompt() {
-    printf("\n");
+char* getCwd_() {
     char* cwd = getcwd(NULL, 0);
     // replace the home directory with a tilde
     char* home = getenv( "HOME" );
@@ -59,7 +62,10 @@ void printPlainPrompt() {
         free(cwd);
         cwd = newCwd;
     }
-    // print the username
+    return cwd;
+}
+
+char* getUser() {
     char* userEnv = getenv( "USER" );
     char* user = NULL;
     if (userEnv) {
@@ -79,13 +85,44 @@ void printPlainPrompt() {
         user[strlen(user) - 1] = '\0';
         pclose(whoami);
     }
-    printf("%s@", user);
+    return user;
+}
+
+void printUser(char* user) {
+    getNameColor();
+    printf("%s%s@", getNameStart(), user);
+    resetColor();
+}
+
+void printHostName() {
     // print the hostname
     char hostname[1024];
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
+    
+    getHostNameColor();
     printf("%s:", hostname);
+    resetColor();
+}
+
+void printCwd(char* cwd) {
+    getPathColor();
     printf("%s ", cwd);
+    resetColor();
+}
+
+void printPlainPrompt() {
+    printf("\n");
+
+    char* cwd = getCwd_();
+    char* user = getUser();
+
+    printUser(user);
+
+    printHostName();
+
+    printCwd(cwd);
+
     if(cwd) free(cwd);
     if(user) free(user);
 

@@ -1548,6 +1548,8 @@ int main(int argc, char *argv[]) {
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
 
+  readConfigFile();
+
   initLexer(f);
   yyparse();
   finalizeLexer();

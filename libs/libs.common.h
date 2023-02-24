@@ -19,5 +19,6 @@
 #include "headers/history.h"
 #include "headers/utils.h"
 #include "headers/exec.h"
+#include "headers/readrc.h"
 
 #endif // LIBS_COMMON_H
