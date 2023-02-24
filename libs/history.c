@@ -66,6 +66,9 @@ char* getPrevHistory() {
     if (historyIndex != 0) {
         historyIndex--;
     }
+    if (historyIndex < 0) {
+        historyIndex = 0;
+    }
     return history->commands[historyIndex];
 }
 
@@ -101,6 +104,9 @@ char* getNextHistory() {
     }
     if (historyIndex != history->numCommands - 1) {
         historyIndex++;
+    }
+    if (historyIndex >= history->numCommands) {
+        historyIndex = history->numCommands - 1;
     }
     return history->commands[historyIndex];
 }

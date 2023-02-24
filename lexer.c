@@ -476,9 +476,10 @@ static char *inputbuffer;
 
 WordState state = COMMAND_STATE;
 void setYYlval(void *obj, YylvalType type);
-#line 479 "lex.yy.c"
+void readConfigFile();
+#line 480 "lex.yy.c"
 
-#line 481 "lex.yy.c"
+#line 482 "lex.yy.c"
 
 #define INITIAL 0
 #define string 1
@@ -700,9 +701,9 @@ YY_DECL
 		}
 
 	{
-#line 18 "shell.l"
+#line 19 "shell.l"
 
-#line 705 "lex.yy.c"
+#line 706 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -762,7 +763,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 19 "shell.l"
+#line 20 "shell.l"
 {
                       BEGIN(INITIAL);
                     }
@@ -770,7 +771,7 @@ YY_RULE_SETUP
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 23 "shell.l"
+#line 24 "shell.l"
 {
                     setYYlval(yytext, YYVAL_STRING);
                     DEBUG("OPTION: %s\n", yytext);
@@ -780,27 +781,31 @@ YY_RULE_SETUP
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 28 "shell.l"
+#line 29 "shell.l"
 BEGIN(INITIAL); /* Return to normal parsing */
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 29 "shell.l"
+#line 30 "shell.l"
 
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 30 "shell.l"
+#line 31 "shell.l"
 {
+                        if (state == OPTION_STATE) {
+                            DEBUG("OPTION: %s\n", yytext);
+                            setYYlval(yytext, YYVAL_STRING);
+                            return OPTION;
+                        }
                         DEBUG("Performing history\n");
                         setYYlval(yytext, YYVAL_STRING);
-                        // state = OPTION_STATE;
                         return BUILTIN;
                     }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 36 "shell.l"
+#line 41 "shell.l"
 {
                         if (state == OPTION_STATE) {
                             DEBUG("OPTION: %s\n", yytext);
@@ -816,12 +821,12 @@ YY_RULE_SETUP
 /* Other grammar parts */
 case 7:
 YY_RULE_SETUP
-#line 49 "shell.l"
+#line 54 "shell.l"
 BEGIN(string); /* We start reading a string until the next " char */
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 50 "shell.l"
+#line 55 "shell.l"
 {
                         state = COMMAND_STATE;
                         return AND_OP;
@@ -829,7 +834,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 54 "shell.l"
+#line 59 "shell.l"
 {
                         return AMP;
                         //TODO: add the gt lt
@@ -837,7 +842,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 59 "shell.l"
+#line 64 "shell.l"
 {
                         state = COMMAND_STATE;
                         return OR_OP;
@@ -845,7 +850,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 63 "shell.l"
+#line 68 "shell.l"
 { 
                         DEBUG("Performing ;\n");
                         state = COMMAND_STATE;
@@ -855,7 +860,7 @@ YY_RULE_SETUP
 case 12:
 /* rule 12 can match eol */
 YY_RULE_SETUP
-#line 68 "shell.l"
+#line 73 "shell.l"
 {
                         BEGIN(INITIAL);
                         printShellPrompt();
@@ -864,7 +869,7 @@ YY_RULE_SETUP
 case 13:
 /* rule 13 can match eol */
 YY_RULE_SETUP
-#line 72 "shell.l"
+#line 77 "shell.l"
 {
                         DEBUG("Performing \\n\n");
                         state = COMMAND_STATE;
@@ -873,14 +878,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 77 "shell.l"
+#line 82 "shell.l"
 {
 
                     }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 80 "shell.l"
+#line 85 "shell.l"
 {
                      // TODO: this has to change, we are better off by just calling the builtin from here   
                       setYYlval(yytext, YYVAL_STRING);
@@ -890,7 +895,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 86 "shell.l"
+#line 91 "shell.l"
 {  
                       if (state == OPTION_STATE) {
                         DEBUG("OPTION: %s\n", yytext);
@@ -904,7 +909,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 96 "shell.l"
+#line 101 "shell.l"
 {
                         if (state == COMMAND_STATE) {
                           // clear yytext from all unicode characters                          
@@ -925,7 +930,7 @@ YY_RULE_SETUP
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(string):
 case YY_STATE_EOF(error):
-#line 112 "shell.l"
+#line 117 "shell.l"
 {
                         /* At EOF we should unconditionally terminate! */
                         yyterminate();
@@ -933,7 +938,7 @@ case YY_STATE_EOF(error):
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 116 "shell.l"
+#line 121 "shell.l"
 {
                         /* Error: unknown character! (probably doesn't happen) */
                         DEBUG("Unrecognized character: %s\n", yytext );
@@ -942,10 +947,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 121 "shell.l"
+#line 126 "shell.l"
 ECHO;
 	YY_BREAK
-#line 948 "lex.yy.c"
+#line 953 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1951,7 +1956,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 121 "shell.l"
+#line 126 "shell.l"
 
 
 /**
@@ -2017,4 +2022,30 @@ void finalizeLexer() {
   free(inputbuffer);
   yylex_destroy();
   yyterminate();
+}
+
+void readConfigFile() {
+  // try and find the config file locally
+  FILE *f = fopen(".sheeshrc", "r");
+  if (f == NULL) {
+    DEBUG("No config file found\n");
+    // try and find the config file in the home directory
+    char *home = getenv("HOME");
+    if (home == NULL) {
+      return;
+    }
+    char *path = malloc(strlen(home) + strlen("/.sheeshrc") + 1);
+    strcpy(path, home);
+    strcat(path, "/.sheeshrc");
+    f = fopen(path, "r");
+    if (f == NULL) {
+      DEBUG("No config file found\n");
+      return;
+    } else {
+      DEBUG("Reading config file from %s\n", path);
+    }
+    free(path);
+  } else {
+    DEBUG("Reading config file from .sheeshrc\n");
+  }
 }

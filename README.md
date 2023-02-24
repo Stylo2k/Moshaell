@@ -1,5 +1,13 @@
 # OperatingSystems
 
+You can run our shell with the bonus stuff implemented by running the following command:
+ 
+```bash
+make
+./shell -e
+```
+
+
 # Lab 1:
 - Extras :
   - cd command

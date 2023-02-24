@@ -7,5 +7,6 @@ void finalizeLexer();
 int yylex(void);
 void showErrorLine();
 void initLexer(FILE *f);
+void readConfigFile();
 
 #endif

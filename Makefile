@@ -1,30 +1,34 @@
 # We construct a separate target for the flex output file lex.yy.c, so that
 # it can be compiled separately. Then in "all" you will combine all other
 # code you might have into a single final executable.
+
+# Variable to hold whether its a bonus
+
 .PHONY: libs
 
 all: parser lexer libs
 	mkdir -p build
 	mv *.o build
-	gcc -DEXT_PROMPT -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -lfl -lm
+	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm; \
 
 mac: parser lexer lib
-	gcc -DEXT_PROMPT -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm
+	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm
 	make clean
+
 
 parser: parser.y
 	bison -d parser.y
 	mv parser.tab.c parser.c
-	gcc -DEXT_PROMPT -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c parser.c
+	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c parser.c
 
 libs:
-	gcc -DEXT_PROMPT -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c libs/*.c
+	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 -c libs/*.c
 
 
 lexer: shell.l
 	flex shell.l
 	mv lex.yy.c lexer.c
-	gcc -DEXT_PROMPT -O2 -Wall -pedantic -std=c99 -Wno-unused-result -g -O2 -c lexer.c
+	gcc -O2 -Wall -pedantic -std=c99 -Wno-unused-result -g -O2 -c lexer.c
 
 clean:
 	rm -f *~

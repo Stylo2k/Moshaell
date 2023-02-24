@@ -1,4 +1,0 @@
-this is tutorials point
-!c standard library
-!library functions and macros
-libs!lll

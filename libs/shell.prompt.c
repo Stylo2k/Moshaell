@@ -119,6 +119,13 @@ void addInputToBuffer(char input) {
     BUFFER_INDEX++;
 }
 
+void listenForCtrlD() {
+    if (BUFFER_INDEX == 0) {
+        cleanUp();
+        exit(0);
+    }
+}
+
 // @experimental
 // Char : 12
 void listenForCtrlL() {
@@ -194,6 +201,7 @@ void listenForDownArrow() {
 
 int removeLastCharFromBuffer() {
     bool removed = false;
+    if(!inputBuffer) return removed;
     if(BUFFER_INDEX == 0) {
         inputBuffer[BUFFER_INDEX] = '\0';
         return removed;
@@ -222,7 +230,7 @@ void listenForRightArrow() {
 }
 
 // Char : 127
-void listForBackspace() {
+void listenForBackspace() {
     // remove the last character from the input buffer
     if(!removeLastCharFromBuffer()) {
         return;
@@ -236,8 +244,22 @@ void newLineCallBack() {
     printf("\n");
 }
 
+void listenForCtrlBackspace() {
+    fprintf(stderr, "Ctrl + Backspace %d\n", BUFFER_INDEX);
+    // remove the previous word from the input buffer
+    // remove the previous word from the screen
+    int removed = 0;
+    while (BUFFER_INDEX > 0 && inputBuffer[BUFFER_INDEX - 1] != ' ') {
+        removed += removeLastCharFromBuffer();
+    }
+    while (removed > 0) {
+        printf("\b \b");
+        removed--;
+    }
+}
 
-bool listenOneKey(int char_, void (*callback)()) {
+
+bool listenForOneKey(int char_, void (*callback)()) {
     tty_raw(STDIN_FILENO);
     int c = getchar();
     if (c == char_) {
@@ -284,52 +306,54 @@ bool listenForSeqKeys(int* char_, int size, void (*callback)(), bool addToBuffer
 
 
 void printShellPrompt() {
-#if EXT_PROMPT
-    // if(experimental) {
-    printPlainPrompt();
-    while (true) {
-        if(listenForSeqKeys((int[]){27, 91, 65}, 3, listenForUpArrow, ADD_TO_BUFFER)) {
-            freeInputBuffer();
-            continue;
-        }
-        if(listenForSeqKeys((int[]){27, 91, 66}, 3, listenForDownArrow, ADD_TO_BUFFER)) {
-            freeInputBuffer();
-            continue;
-        }
-        // listen to left arrow
-        if(listenForSeqKeys((int[]){27, 91, 68}, 3, listenForLeftArrow, DONT_ADD_TO_BUFFER)) {
-            continue;
-        }
-        // listen to right arrow
-        if(listenForSeqKeys((int[]){27, 91, 67}, 3, listenForRightArrow, DONT_ADD_TO_BUFFER)) {
-            continue;
-        }
-        if(listenOneKey(12, listenForCtrlL)) {
-            freeInputBuffer();
-            continue;
-        }
-        if(listenOneKey(127, listForBackspace)) {
-            continue;
-        }
-
-        if(listenOneKey(10, newLineCallBack)) {
-            // read any remaining characters in the stdin
-            // write the entire input buffer to the stdin using ungetc
-            for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
-                ungetc(inputBuffer[i], stdin);
+    if(experimental) {
+        printPlainPrompt();
+        while (true) {
+            if(listenForSeqKeys((int[]){27, 91, 65}, 3, listenForUpArrow, ADD_TO_BUFFER)) {
+                freeInputBuffer();
+                continue;
             }
-            freeInputBuffer();
-            break;
-        }
+            if(listenForSeqKeys((int[]){27, 91, 66}, 3, listenForDownArrow, ADD_TO_BUFFER)) {
+                freeInputBuffer();
+                continue;
+            }
+            // listen to left arrow
+            if(listenForSeqKeys((int[]){27, 91, 68}, 3, listenForLeftArrow, DONT_ADD_TO_BUFFER)) {
+                continue;
+            }
+            // listen to right arrow
+            if(listenForSeqKeys((int[]){27, 91, 67}, 3, listenForRightArrow, DONT_ADD_TO_BUFFER)) {
+                continue;
+            }
+            if(listenForOneKey(12, listenForCtrlL)) {
+                freeInputBuffer();
+                continue;
+            }
+            if(listenForOneKey(4, listenForCtrlD)) {
+                freeInputBuffer();
+                break;
+            }
+            if(listenForOneKey(127, listenForBackspace)) {
+                continue;
+            }
 
-        // consume the stdin
-        tty_raw(STDIN_FILENO);
-        int c = getchar();
-        tty_reset(STDIN_FILENO);
-        // put it in the input buffer
-        addInputToBuffer(c);
-        printf("%c", c);
+            if(listenForOneKey(10, newLineCallBack)) {
+                // read any remaining characters in the stdin
+                // write the entire input buffer to the stdin using ungetc
+                for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
+                    ungetc(inputBuffer[i], stdin);
+                }
+                freeInputBuffer();
+                break;
+            }
+
+            // consume the stdin
+            tty_raw(STDIN_FILENO);
+            int c = getchar();
+            tty_reset(STDIN_FILENO);
+            // put it in the input buffer
+            addInputToBuffer(c);
+            printf("%c", c);
+        }
     }
-// }
-#endif
 }

@@ -45,9 +45,6 @@ void executeBuiltIn(char* name) {
     cleanUp();
 }
 
-
-#include "../common.h"
-
 void findBinary(char* name) {
     if (!name) {
         return;
@@ -106,8 +103,6 @@ void findBinary(char* name) {
  * 
  * @return int the exit code of the command
  */
-#include "../common.h"
-
 int execCommand(char* command, bool builtIn) {
     if (builtIn) {
         DEBUG("Executing built-in command %s\n", command);
@@ -126,11 +121,10 @@ int execCommand(char* command, bool builtIn) {
         return 127;
     }
 
-    #if EXT_PROMPT
-    // if (experimental) {
+    
+    if (experimental) {
         addToHistory(command);
-    // }
-    #endif
+    }
 
     char* commandPath = getBinPath();
 
