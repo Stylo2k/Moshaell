@@ -27,7 +27,12 @@ void setYYlval(void *obj, YylvalType type);
                     }
 <error>\n           BEGIN(INITIAL); /* Return to normal parsing */
 <error>.
-
+"history"           {
+                        DEBUG("Performing history\n");
+                        setYYlval(yytext, YYVAL_STRING);
+                        // state = OPTION_STATE;
+                        return BUILTIN;
+                    }
 "exit"              {
                         if (state == OPTION_STATE) {
                             DEBUG("OPTION: %s\n", yytext);
@@ -90,6 +95,7 @@ void setYYlval(void *obj, YylvalType type);
                     }
 [^ ;\t\n\"\^|]+     {
                         if (state == COMMAND_STATE) {
+                          // clear yytext from all unicode characters                          
                             DEBUG("COMMAND: %s\n", yytext);
                             state= OPTION_STATE;
                             setYYlval(yytext, YYVAL_STRING);

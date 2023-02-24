@@ -1,10 +1,12 @@
-arg: /usr/bin/ls
-arg: /usr/bin/ls
-arg: -l
-arg: /usr/bin/ls
-arg: -al
-arg: /usr/bin/ls
-arg: -a
-args is null
-args is null
-args is null
+Running in verbose and experimental mode
+
+mohammad@ThinkPad:~/Uni/OperatingSystems 
+[2K-> ls
+COMMAND: ls[C
+Performing \n
+isOR: -1 isBuiltIn: 0 alwaysTrue: 0 exitCode: 0 latestCMD: ls[C
+Error: command not found!
+no options to clean up
+
+mohammad@ThinkPad:~/Uni/OperatingSystems 
+[2K-> 

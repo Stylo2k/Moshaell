@@ -23,6 +23,10 @@ void executeBuiltIn(char* name) {
         exit(0);
     }
 
+    if (strcmp(name, "history") == 0) {
+        printSessionHistory();
+    }
+
     if (strcmp(name, "cd") == 0) {
         if (noOptions()) {
             exitCode = chdir(getenv("HOME"));
@@ -143,6 +147,7 @@ int execCommand(char* command, bool builtIn) {
         if (command) free(command);
         return exitCode;
     }
+    return 0;
 }
 
 bool isAlwaysTrue() {

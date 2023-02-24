@@ -33,7 +33,7 @@
 
 %%
 
-program : InputLine;
+program : {printShellPrompt();} InputLine;
 
 InputLine :   Chain     AMP        InputLine 
             | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1;setAlwaysTrue(false);}
@@ -126,6 +126,8 @@ int execChain() {
     cleanUp();
     return EXIT_FAILURE;
   }
+
+  return EXIT_FAILURE;
 }
 
 void resetFlags() {
@@ -209,10 +211,22 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if(argc == 3) {
+    if (strcmp(argv[1], "-s") == 0 && strcmp(argv[2], "-e") == 0) {
+      printf("Running in silent and experimental mode\n");
+      silent = true;
+      experimental = true;
+    } else if (strcmp(argv[1], "-v") == 0 && strcmp(argv[2], "-e") == 0) {
+      printf("Running in verbose and experimental mode\n");
+      silent = false;
+      experimental = true;
+    } else {
+      return EXIT_FAILURE;
+    }
+  }
+
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
-
-  printShellPrompt();
 
   initLexer(f);
   yyparse();

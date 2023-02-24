@@ -13,6 +13,7 @@ void newHistory(bool cleanPrevious) {
     history = malloc(sizeof(char*) * 100);
     history->commands = malloc(sizeof(char**) * 100);
     history->args = malloc(sizeof(char***) * 100);
+    history->numArgs = malloc(sizeof(int) * 100);
     history->numCommands = 0;
 }
 
@@ -22,16 +23,16 @@ void addToHistory(char* command) {
     }
 
     // add the command to the history
-    history->commands[history->numCommands] = malloc(strlen(command) + 1);
+    history->commands[history->numCommands] = calloc(strlen(command) + 1, sizeof(char));
     strcpy(history->commands[history->numCommands], command);
     
     int numArgs = getNumberOfOptions();
 
-    history->args[history->numCommands] = malloc(sizeof(char**) * numArgs);
+    history->args[history->numCommands] = calloc(numArgs, sizeof(char**));
     for (int i = 0; i < numArgs; i++) {
         char* arg = getArgAt(i);
-        fprintf(stderr, "arg: %s\n", arg);
-        history->args[history->numCommands][i] = malloc(strlen(arg) + 1);
+        history->numArgs[history->numCommands] = numArgs;
+        history->args[history->numCommands][i] = calloc(strlen(arg) + 1, sizeof(char));
         strcpy(history->args[history->numCommands][i], arg);
     }
 
@@ -62,10 +63,9 @@ char* getPrevHistory() {
         DEBUG("No history to check\n");
         return NULL;
     }
-    if (historyIndex == 0) {
-        return NULL;
+    if (historyIndex != 0) {
+        historyIndex--;
     }
-    historyIndex--;
     return history->commands[historyIndex];
 }
 
@@ -74,21 +74,34 @@ char** getPrevHistoryArgs() {
         DEBUG("No history to check\n");
         return NULL;
     }
-    if (historyIndex == 0) {
-        return NULL;
-    }
     return history->args[historyIndex];
 }
+
+int getPreviousHistoryArgsCount() {
+    if (!history) {
+        DEBUG("No history to check\n");
+        return 0;
+    }
+    return history->numArgs[historyIndex];
+}
+
+int getNextHistoryArgsCount() {
+    if (!history) {
+        DEBUG("No history to check\n");
+        return 0;
+    }
+    return history->numArgs[historyIndex];
+}
+
 
 char* getNextHistory() {
     if (!history) {
         DEBUG("No history to check\n");
         return NULL;
     }
-    if (historyIndex == history->numCommands - 1) {
-        return NULL;
+    if (historyIndex != history->numCommands - 1) {
+        historyIndex++;
     }
-    historyIndex++;
     return history->commands[historyIndex];
 }
 
@@ -97,14 +110,12 @@ char** getNextHistoryArgs() {
         DEBUG("No history to check\n");
         return NULL;
     }
-    if (historyIndex == history->numCommands - 1) {
-        return NULL;
-    }
+
     return history->args[historyIndex];
 }
 
 
-char** getHistoryAt(int index) {
+char* getHistoryAt(int index) {
     if (!history) {
         DEBUG("No history to check\n");
         return NULL;
@@ -135,4 +146,20 @@ int getNumberOfHistoryCommands() {
         return 0;
     }
     return history->numCommands;
+}
+
+
+void printSessionHistory() {
+    if (!history) {
+        DEBUG("No history to print\n");
+        return;
+    }
+    for (int i = 0; i < history->numCommands; i++) {
+        printf("%d: %s ", i, history->commands[i]);
+        // print the args without the first one
+        for (int j = 1; j < history->numArgs[i]; j++) {
+            printf("%s ", history->args[i][j]);
+        }
+        printf("\n");
+    }
 }

@@ -22,6 +22,7 @@ typedef struct options {
 typedef struct History {
     char** commands;
     char*** args;
+    int* numArgs;
     int numCommands;
 } History;
 

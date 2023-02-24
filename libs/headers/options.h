@@ -13,5 +13,6 @@ void addBinPathToOptions(char* bin);
 char* getBinPath();
 int getNumberOfOptions();
 char* getArgAt(int index);
+char** getArgs();
 
 #endif
