@@ -11,7 +11,9 @@ all: parser lexer libs
 	mv *.o build
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm; \
 
-mac: parser lexer lib
+mac: parser lexer libs
+	mkdir -p build
+	mv *.o build
 	gcc -g -O2 -Wall -pedantic -std=c99 -Wno-unused-result -O2 build/*.o -o shell -ll -lm
 	make clean
 

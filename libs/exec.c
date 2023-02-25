@@ -5,12 +5,25 @@ static bool alwaysTrue = false;
 
 #include "../common.h"
 
-
+char* builtin[] = {
+    "status",
+    "exit",
+    "history",
+    "cd",
+    NULL
+};
 
 void executeBuiltIn(char* name) {
     if (!name) {
         return;
     }
+
+    if (strcmp(name, "history") == 0) {
+        printSessionHistory();
+    } else if (experimental) {
+        addToHistory(name);
+    }
+    
     if (strcmp(name, "status") == 0) {
         printf("The most recent exit code is: %d\n", exitCode);
         alwaysTrue = true;
@@ -23,9 +36,6 @@ void executeBuiltIn(char* name) {
         exit(0);
     }
 
-    if (strcmp(name, "history") == 0) {
-        printSessionHistory();
-    }
 
     if (strcmp(name, "cd") == 0) {
         if (noOptions()) {
@@ -51,6 +61,12 @@ bool doesBinaryExist(char* name) {
     }
     if (strcmp(name, "") == 0) {
         return false;
+    }
+
+    for(int i = 0; builtin[i] != NULL; i++) {
+        if (strcmp(name, builtin[i]) == 0) {
+            return true;
+        }
     }
     
     char* localName = malloc(strlen(name) + 1);

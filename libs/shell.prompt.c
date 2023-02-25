@@ -355,22 +355,29 @@ void wrongBin() {
     printf("\033[0m");
 }
 
-void checkBin(bool* alreadyReadBin) {
+void checkBin(bool* alreadyReadBin, int* cmdEndIndex) {
     bool binExists = doesBinaryExist(inputBuffer);
 
     if(readingCommand() && binExists) {
         // remove the text then print the color green
         rightBin();
+        (*cmdEndIndex) = BUFFER_INDEX;
     } else if(readingCommand() && !(*alreadyReadBin) && !binExists) {
         // remove the text and print the color red
         wrongBin();
     }
 }
 
+void listenForCtrlK() {
+}
+void listenForCtrlJ() {
+}
+
 void printShellPrompt() {
     if(experimental) {
         printPlainPrompt();
         bool alreadyReadBin = false;
+        int cmdEndIndex = 0;
         while (true) {
             if(listenForSeqKeys((int[]){27, 91, 65}, 3, listenForUpArrow, ADD_TO_BUFFER)) {
                 freeInputBuffer();
@@ -388,6 +395,11 @@ void printShellPrompt() {
             if(listenForSeqKeys((int[]){27, 91, 67}, 3, listenForRightArrow, DONT_ADD_TO_BUFFER)) {
                 continue;
             }
+            // listen to ctrl + K
+            if(listenForOneKey(11, listenForCtrlK)) {
+                continue;
+            }
+            // listen to ctrl + L
             if(listenForOneKey(12, listenForCtrlL)) {
                 freeInputBuffer();
                 continue;
@@ -397,8 +409,10 @@ void printShellPrompt() {
                 break;
             }
             if(listenForOneKey(127, listenForBackspace)) {
-                alreadyReadBin = false;
-                checkBin(&alreadyReadBin);
+                if (BUFFER_INDEX <= cmdEndIndex) {
+                    alreadyReadBin = false;
+                }
+                checkBin(&alreadyReadBin, &cmdEndIndex);
                 continue;
             }
 
@@ -421,11 +435,11 @@ void printShellPrompt() {
             printf("%c", c);
 
             // if the char is a space reset the alreadyReadBin
-            if(c == ' ') {
+            if(c == ' ' || c == ';' || c == '|' || c == '>' || c == '<') {
                 alreadyReadBin = true;
             }
             
-            checkBin(&alreadyReadBin);
+            checkBin(&alreadyReadBin, &cmdEndIndex);
         }
     }
 }
