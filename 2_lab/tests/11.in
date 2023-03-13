@@ -1,0 +1,11 @@
+status
+status || echo a
+status options 
+idk || status
+echo b
+status
+false
+status
+true
+status
+exit

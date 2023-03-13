@@ -1,0 +1,25 @@
+Files descriptors: 0 3
+build
+cerr.log
+common.h
+cout.log
+file
+idk
+idk2
+lexer.c
+lexer.h
+libs
+Makefile
+parser.c
+parser.tab.h
+parser.y
+shell
+shell.l
+tempFile
+test.c
+types.h
+vgcore.2298180
+vgcore.2298948
+vgcore.2308814
+vgcore.2311786
+vgcore.2313296

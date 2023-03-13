@@ -1,0 +1,19 @@
+a.out
+build
+cerr.log
+common.h
+cout.log
+file
+lexer.c
+lexer.h
+libs
+Makefile
+parser.c
+parser.tab.h
+parser.y
+shell
+shell.l
+test.c
+types.h
+doing an ls or something now
+doing an ls or something now
