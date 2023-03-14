@@ -1,0 +1,2 @@
+echo "some string <> with 'special' characters"
+exit

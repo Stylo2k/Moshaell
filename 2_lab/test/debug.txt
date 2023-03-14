@@ -1,0 +1,313 @@
+1
+2
+3
+isempty: 0
+1
+20 20 -1 
+index: 19
+CPU: Time: 0, index: 0
+19 20 -1 
+isempty: 0
+2
+19 20 -1 
+index: 18
+CPU: Time: 1, index: 0
+18 20 -1 
+isempty: 0
+18 20 -1 
+index: 17
+CPU: Time: 2, index: 0
+17 20 -1 
+isempty: 0
+3
+17 20 -1 
+index: 16
+CPU: Time: 3, index: 0
+16 20 -1 
+isempty: 1
+16 20 -1 
+index: 15
+CPU: Time: 4, index: 0
+15 20 -1 
+isempty: 1
+15 20 -1 
+index: 14
+CPU: Time: 5, index: 0
+14 20 -1 
+isempty: 1
+14 20 -1 
+index: 13
+CPU: Time: 6, index: 0
+13 20 -1 
+isempty: 1
+13 20 -1 
+index: 12
+CPU: Time: 7, index: 0
+12 20 -1 
+isempty: 1
+12 20 -1 
+index: 11
+CPU: Time: 8, index: 0
+11 20 -1 
+isempty: 1
+11 20 -1 
+index: 10
+CPU: Time: 9, index: 0
+10 20 -1 
+isempty: 1
+10 20 -1 
+index: 9
+CPU: Time: 10, index: 0
+9 20 -1 
+isempty: 1
+9 20 -1 
+index: 8
+CPU: Time: 11, index: 0
+8 20 -1 
+isempty: 1
+8 20 -1 
+index: 7
+CPU: Time: 12, index: 0
+7 20 -1 
+isempty: 1
+7 20 -1 
+index: 6
+CPU: Time: 13, index: 0
+6 20 -1 
+isempty: 1
+6 20 -1 
+index: 5
+CPU: Time: 14, index: 0
+5 20 -1 
+isempty: 1
+5 20 -1 
+index: 4
+CPU: Time: 15, index: 0
+4 20 -1 
+isempty: 1
+4 20 -1 
+index: 3
+CPU: Time: 16, index: 0
+3 20 -1 
+isempty: 1
+3 20 -1 
+index: 2
+CPU: Time: 17, index: 0
+2 20 -1 
+isempty: 1
+2 20 -1 
+index: 1
+CPU: Time: 18, index: 0
+1 20 -1 
+isempty: 1
+1 20 -1 
+index: 0
+1
+CPU: Time: 19, index: 1
+
+isempty: 1
+20 20 -1 
+index: 19
+CPU: Time: 20, index: 0
+19 20 -1 
+IO: Time: 20, index: 1
+0 19 -1 
+isempty: 1
+19 20 -1 
+index: 18
+CPU: Time: 21, index: 0
+18 20 -1 
+IO: Time: 21, index: 1
+0 18 -1 
+isempty: 1
+18 20 -1 
+index: 17
+CPU: Time: 22, index: 0
+17 20 -1 
+IO: Time: 22, index: 1
+0 17 -1 
+isempty: 1
+17 20 -1 
+index: 16
+CPU: Time: 23, index: 0
+16 20 -1 
+IO: Time: 23, index: 1
+0 16 -1 
+isempty: 1
+16 20 -1 
+index: 15
+CPU: Time: 24, index: 0
+15 20 -1 
+IO: Time: 24, index: 1
+0 15 -1 
+isempty: 1
+15 20 -1 
+index: 14
+CPU: Time: 25, index: 0
+14 20 -1 
+IO: Time: 25, index: 1
+0 14 -1 
+isempty: 1
+14 20 -1 
+index: 13
+CPU: Time: 26, index: 0
+13 20 -1 
+IO: Time: 26, index: 1
+0 13 -1 
+isempty: 1
+13 20 -1 
+index: 12
+CPU: Time: 27, index: 0
+12 20 -1 
+IO: Time: 27, index: 1
+0 12 -1 
+isempty: 1
+12 20 -1 
+index: 11
+CPU: Time: 28, index: 0
+11 20 -1 
+IO: Time: 28, index: 1
+0 11 -1 
+isempty: 1
+11 20 -1 
+index: 10
+CPU: Time: 29, index: 0
+10 20 -1 
+IO: Time: 29, index: 1
+0 10 -1 
+isempty: 1
+10 20 -1 
+index: 9
+CPU: Time: 30, index: 0
+9 20 -1 
+IO: Time: 30, index: 1
+0 9 -1 
+isempty: 1
+9 20 -1 
+index: 8
+CPU: Time: 31, index: 0
+8 20 -1 
+IO: Time: 31, index: 1
+0 8 -1 
+isempty: 1
+8 20 -1 
+index: 7
+CPU: Time: 32, index: 0
+7 20 -1 
+IO: Time: 32, index: 1
+0 7 -1 
+isempty: 1
+7 20 -1 
+index: 6
+CPU: Time: 33, index: 0
+6 20 -1 
+IO: Time: 33, index: 1
+0 6 -1 
+isempty: 1
+6 20 -1 
+index: 5
+CPU: Time: 34, index: 0
+5 20 -1 
+IO: Time: 34, index: 1
+0 5 -1 
+isempty: 1
+5 20 -1 
+index: 4
+CPU: Time: 35, index: 0
+4 20 -1 
+IO: Time: 35, index: 1
+0 4 -1 
+isempty: 1
+4 20 -1 
+index: 3
+CPU: Time: 36, index: 0
+3 20 -1 
+IO: Time: 36, index: 1
+0 3 -1 
+isempty: 1
+3 20 -1 
+index: 2
+CPU: Time: 37, index: 0
+2 20 -1 
+IO: Time: 37, index: 1
+0 2 -1 
+isempty: 1
+2 20 -1 
+index: 1
+CPU: Time: 38, index: 0
+1 20 -1 
+IO: Time: 38, index: 1
+0 1 -1 
+isempty: 1
+1 20 -1 
+index: 0
+2
+CPU: Time: 39, index: 1
+
+IO: Time: 39, index: 1
+
+isempty: 1
+20 50 20 -1 
+index: 19
+CPU: Time: 40, index: 0
+19 50 20 -1 
+IO: Time: 40, index: 1
+0 19 -1 
+isempty: 1
+19 50 20 -1 
+index: 18
+CPU: Time: 41, index: 0
+18 50 20 -1 
+IO: Time: 41, index: 1
+0 18 -1 
+isempty: 1
+18 50 20 -1 
+index: 17
+CPU: Time: 42, index: 0
+17 50 20 -1 
+IO: Time: 42, index: 1
+0 17 -1 
+isempty: 1
+17 50 20 -1 
+index: 16
+CPU: Time: 43, index: 0
+16 50 20 -1 
+IO: Time: 43, index: 1
+0 16 -1 
+isempty: 1
+16 50 20 -1 
+index: 15
+CPU: Time: 44, index: 0
+15 50 20 -1 
+IO: Time: 44, index: 1
+0 15 -1 
+isempty: 1
+15 50 20 -1 
+index: 14
+CPU: Time: 45, index: 0
+14 50 20 -1 
+IO: Time: 45, index: 1
+0 14 -1 
+isempty: 1
+14 50 20 -1 
+index: 13
+CPU: Time: 46, index: 0
+13 50 20 -1 
+IO: Time: 46, index: 1
+0 13 -1 
+isempty: 1
+13 50 20 -1 
+index: 12
+CPU: Time: 47, index: 0
+12 50 20 -1 
+IO: Time: 47, index: 1
+0 12 -1 
+isempty: 1
+12 50 20 -1 
+index: 11
+CPU: Time: 48, index: 0
+11 50 20 -1 
+IO: Time: 48, index: 1
+0 11 -1 
+isempty: 1
+11 
