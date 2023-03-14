@@ -102,14 +102,24 @@ Redirections :  LT FILENAME GT FILENAME {
                                           } else {
                                             int fd = open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666);
                                             int fd1 = open($4, O_RDONLY);
-                                            configureInput(getCommandAt(0), fd1); 
-                                            configureOutput(getCommandAt(currentRedirIndex - 1), fd);
+                                            if (fd == -1 || fd1 == -1) {
+                                              printf("Error: cannot open file for reading\n");
+                                            } else {
+                                              configureInput(getFirstCommand(), fd1); 
+                                              configureOutput(getLastCommand(), fd);
+                                            }
                                           }
                                           if($2) free($2);
                                           if($4) free($4);
                                         }
               | GT FILENAME             {
-                                          configureOutput(getCommandAt(currentRedirIndex - 1), open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666));
+                                          int fd = open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                          if (fd == -1) {
+                                            printf("Error: input and output files cannot be equal!\n");
+                                            resetPipeline();
+                                          } else {
+                                            configureOutput(getLastCommand(), fd);
+                                          }
                                           if($2) free($2);
                                         }
               | LT FILENAME             {
@@ -117,7 +127,7 @@ Redirections :  LT FILENAME GT FILENAME {
                                           if (fd == -1) {
                                             printf("Error: cannot open file %s for reading\n", $2);
                                           } else {
-                                            configureInput(getCommandAt(currentRedirIndex - 1), fd);
+                                            configureInput(getLastCommand(), fd);
                                           }
                                           if($2) free($2);
                                         }
@@ -125,23 +135,31 @@ Redirections :  LT FILENAME GT FILENAME {
               ;
 
 Pipeline :  Command PIPE_OP 
-                                {
-                                  latestCMDPiped = true;
-                                  addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
-                                  cleanUp();
-                                  currentRedirIndex++;
-                                }
-            Pipeline {$$ = $4;}
-          | Command {
-                      addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
-                      cleanUp();
-                      currentRedirIndex++;
-                    }
+                                        {
+                                          latestCMDPiped = true;
+                                          addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
+                                          cleanUp();
+                                          currentRedirIndex++;
+                                        }
+            Pipeline 
+                                        {
+                                          $$ = $4;
+                                        }
+            | Command 
+                                        {
+                                          addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
+                                          cleanUp();
+                                          currentRedirIndex++;
+                                          $$ = $1;
+                                        }
           ;
 
 Command: EXECUTABLE {
                     }
-         Options {$$ = $1;};
+         Options 
+                    {
+                      $$ = $1;
+                    };
 
 Options: OPTION { 
                     addOption($1);
@@ -180,12 +198,10 @@ int execChain() {
   if (isOR == -1) { // first time
     exitCode = execPipeline();
     resetPipeline();
-    cleanUp();
     return exitCode;
   }
 
   if(isOR && successExitCode(exitCode)) {
-    cleanUp();
     resetPipeline();
     return EXIT_SUCCESS;
   }
@@ -193,19 +209,16 @@ int execChain() {
   if (isOR && failureExitCode(exitCode)) {
     exitCode = execPipeline();
     resetPipeline();
-    cleanUp();
     return exitCode;
   }
   
   if (!isOR && successExitCode(exitCode)) {
     exitCode = execPipeline();
     resetPipeline();
-    cleanUp();
     return exitCode;
   }
   
   if (!isOR && failureExitCode(exitCode)) {
-    cleanUp();
     resetPipeline();
     return EXIT_FAILURE;
   }

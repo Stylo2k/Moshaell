@@ -7,7 +7,7 @@ static Pipeline *pipeline = NULL;
 Command *newCommand(char* name, char** args, int argCount) {
     Command *cmd = malloc(sizeof(Command));
     cmd->name = strdup(name);
-    cmd->path = strdup(name);
+    cmd->path = findBinary(name);
     // copy the args
     cmd->args = malloc(sizeof(char*) * (argCount + 2));
     cmd->args[0] = strdup(name);
@@ -91,6 +91,20 @@ void resetPipeline() {
         free(pipeline);
         pipeline = NULL;
     }
+}
+
+Command* getFirstCommand() {
+    assertPipeline();
+    return pipeline->commands;
+}
+
+Command* getLastCommand() {
+    assertPipeline();
+    Command *current = pipeline->commands;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+    return current;
 }
 
 

@@ -31,5 +31,7 @@ void addBuiltInToPipelineWithArgs(char* name, char** args, int argCount);
 void configureInput(Command *cmd, int fd);
 void configureOutput(Command *cmd, int fd);
 int getCommandCount();
+Command* getFirstCommand();
+Command* getLastCommand();
 
 #endif

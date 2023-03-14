@@ -115,13 +115,13 @@ bool doesBinaryExist(char* name) {
     return true;
 }
 
-void findBinary(char* name) {
+char* findBinary(char* name) {
     if (!name) {
-        return;
+        return NULL;
     }
 
     if (strcmp(name, "") == 0) {
-        return;
+        return NULL;
     }
 
     // verify that the command is valid, by looking it up in the
@@ -151,21 +151,23 @@ void findBinary(char* name) {
 
         if (stat(cmdPath, &st) == 0) {
             DEBUG("Command found at %s\n", cmdPath);
+            if (fullPath) free(fullPath);
             addBinPathToOptions(cmdPath);
-            if (cmdPath) free(cmdPath);
-            break;
+            return cmdPath;
         }
         if (cmdPath) free(cmdPath);
         path = strtok(NULL, ":");
     }
     
-    if (path == NULL) {
+    if (!builtin && path == NULL) {
         printf("Error: command not found!\n");
         // if the command is not found, we should just ignore it
         exitCode = 127;
     }
 
     if (fullPath) free(fullPath);
+
+    return NULL;
 }
 
 int execCommands(Command* commands) {
@@ -192,49 +194,50 @@ int execCommands(Command* commands) {
         
         if (pid == 0) {
             if (i != n -1) {
+                // command input has been set to something other than stdin
                 if (commandIn != STDIN_FILENO) {
                     dup2(commandIn, STDIN_FILENO);
                     close(commandIn);
-                } else {
+                } else if (prev_pipe != STDIN_FILENO) {
                     // Redirect previous pipe to stdin
-                    if (prev_pipe != STDIN_FILENO) {
-                        dup2(prev_pipe, STDIN_FILENO);
-                        close(prev_pipe);
-                    }
+                    dup2(prev_pipe, STDIN_FILENO);
+                    close(prev_pipe);
                 }
-
-                // Redirect stdout to current pipe
+                
+                // command output has been set to something other than stdout
                 if (commandOut != STDOUT_FILENO) {
                     dup2(commandOut, STDOUT_FILENO);
                     close(commandOut);
                 } else {
+                    // Redirect stdout to current pipe
                     dup2(pfds[1], STDOUT_FILENO);
                     close(pfds[1]);
                 }
 
             } else {
+                // last command
                 if (commandIn != STDIN_FILENO) {
                     dup2(commandIn, STDIN_FILENO);
                     close(commandIn);
-                } else {
+                } else if (prev_pipe != STDIN_FILENO) {
                     // Get stdin from last pipe
-                    if (prev_pipe != STDIN_FILENO) {
-                        dup2(prev_pipe, STDIN_FILENO);
-                        close(prev_pipe);
-                    }
+                    dup2(prev_pipe, STDIN_FILENO);
+                    close(prev_pipe);
                 }
+
                 if (commandOut != STDOUT_FILENO) {
                     dup2(commandOut, STDOUT_FILENO);
                     close(commandOut);
                 }
             }
-            execvp(command->path, command->args);
+            execv(command->path, command->args);
             exit(1);
         } else {
             //  close the file descriptors
             if (commandIn != STDIN_FILENO) close(commandIn);
             if (commandOut != STDOUT_FILENO) close(commandOut);
 
+            // save the pid
             pids[i] = pid;
 
             // Close read end of previous pipe (not needed in the parent)
@@ -276,23 +279,24 @@ int execCommand(Command* command) {
         return exitCode;
     }
     alwaysTrue = false;
-    findBinary(commandName);
-    // command not found, return 127
-    if (noCommand()) {
-        cleanUp();
-        return 127;
-    }
 
     
     if (experimental) {
         addToHistory(commandName);
     }
  
-    char* commandPath = getBinPath();
+    char* commandPath = command->path;
+    if (!commandPath) {    
+        // command not found, return 127
+        cleanUp();
+        printf("Error: command not found!\n");
+        exitCode = 127;
+        return 127;
+    }
+    
 
     int commandIn = command->in;
     int commandOut = command->out;
-    
 
     int pipefd[2];
     
@@ -330,7 +334,6 @@ int execCommand(Command* command) {
         exitCode = WEXITSTATUS(status);
         cleanUp();
         
-        // if (commandName) free(commandName);
         return exitCode;
     }
     return 0;
