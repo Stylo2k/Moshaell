@@ -7,16 +7,16 @@ static Pipeline *pipeline = NULL;
 Command *newCommand(char* name, char** args, int argCount) {
     Command *cmd = malloc(sizeof(Command));
     cmd->name = strdup(name);
+    cmd->path = strdup(name);
     // copy the args
     cmd->args = malloc(sizeof(char*) * (argCount + 2));
     cmd->args[0] = strdup(name);
-    cmd->path = strdup(name);
+    free(name);
     int i = 1;
     while (i < argCount) {
         cmd->args[i] = strdup(args[i]);
         i++;
     }
-
     cmd->args[i] = NULL;
     cmd->argc = argCount;
     cmd->in = STDIN_FILENO;
@@ -25,14 +25,6 @@ Command *newCommand(char* name, char** args, int argCount) {
     cmd->err = STDERR_FILENO;
     cmd->next = NULL;
     return cmd;
-}
-
-void setPathForCommand(Command *cmd, char* path) {
-    if (cmd->path) {
-        free(cmd->path);
-    }
-    cmd->path = strdup(path);
-    free(path);
 }
 
 void assertPipeline() {
@@ -84,6 +76,15 @@ void resetPipeline() {
         Command *current = pipeline->commands;
         while (current != NULL) {
             Command *next = current->next;
+            free(current->name);
+            free(current->path);
+            free(current->args[0]);
+            int i = 1;
+            while (i < current->argc) {
+                free(current->args[i]);
+                i++;
+            }
+            free(current->args);
             free(current);
             current = next;
         }
@@ -96,7 +97,6 @@ void resetPipeline() {
 Command* getCommandAt(int index) {
     assertPipeline();
     if (index > pipeline->command_count) {
-        printf("Index %d is out of bounds for pipeline with %d commands\n", index, pipeline->command_count);
         return NULL;
     }
     Command *current = pipeline->commands;
@@ -110,6 +110,9 @@ Command* getCommandAt(int index) {
 
 
 void configureInput(Command *cmd, int fd) {
+    if (!cmd) {
+        return;
+    }
     if (cmd->in != STDIN_FILENO) {
         close(cmd->in);
     }
@@ -117,14 +120,22 @@ void configureInput(Command *cmd, int fd) {
 }
 
 void configureOutput(Command *cmd, int fd) {
+    if(!cmd) {
+        return;
+    }
     if (cmd->out != STDOUT_FILENO) {
         close(cmd->out);
     }
     cmd->out = fd;
 }
 
+void addBuiltInToPipelineWithArgs(char* name, char** args, int argCount) {
+    Command *cmd = newCommand(name, args, argCount);
+    cmd->isBuiltIn = true;
+    addCommandToPipeline(cmd);
+}
 
 int getCommandCount() {
     assertPipeline();
-    return pipeline->command_count - 1;
+    return pipeline->command_count;
 }

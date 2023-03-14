@@ -24,7 +24,8 @@ void setYYlval(void *obj, YylvalType type);
 <string>[^\"]+      {
                     setYYlval(yytext, YYVAL_STRING);
                     DEBUG("OPTION: %s\n", yytext);
-                    return OPTION;
+                    if (state == OPTION_STATE) return OPTION;
+                    if (state == FILENAME_STATE) return FILENAME;
                     }
 <error>\n           BEGIN(INITIAL); /* Return to normal parsing */
 <error>.
@@ -125,6 +126,7 @@ void setYYlval(void *obj, YylvalType type);
                         } else if (state == FILENAME_STATE) {
                             DEBUG("FILENAME: %s\n", yytext);
                             setYYlval(yytext, YYVAL_STRING);
+                            state = COMMAND_STATE;
                             return FILENAME;
                         }
                     }

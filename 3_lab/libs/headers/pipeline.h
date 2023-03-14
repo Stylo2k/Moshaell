@@ -4,7 +4,7 @@
 
 typedef struct Command {
     char *name;
-    char* path;
+    char *path;
     char **args;
     int argc;
     int in;
@@ -21,13 +21,13 @@ typedef struct Pipeline {
 
 
 Command *newCommand(char* name, char** args, int argCount);
-void setPathForCommand(Command *cmd, char* path);
 void addCommandToPipeline(Command *cmd);
 void addCommandToPipelineWithArgs(char* name, char** args, int argCount);
 
 Command* getCommand(int index);
 void resetPipeline();
 Command* getCommandAt(int index);
+void addBuiltInToPipelineWithArgs(char* name, char** args, int argCount);
 void configureInput(Command *cmd, int fd);
 void configureOutput(Command *cmd, int fd);
 int getCommandCount();

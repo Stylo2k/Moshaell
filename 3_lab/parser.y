@@ -8,7 +8,6 @@
 
   int isOR = -1;
   bool isBuiltIn = false;
-  char* latestCMD;
   extern WordState state;
   int execChain();
 
@@ -63,35 +62,65 @@ Chain :     Pipeline Redirections
                                                               exitCode = execCommands(getCommand(0));
                                                             } else {
                                                               exitCode  = execChain();
-                                                              resetPipeline();
                                                             }
+                                                            resetPipeline();
                                                             resetFlags();
                                                             $$ = exitCode;
                                                           }
             | BUILTIN                                     {
-                                                            latestCMD = $1;
+                                                            
                                                           }
             Options                                       {
                                                             isBuiltIn = true;
-                                                            $$ = execChain(NOTPIPED);
+                                                            addBuiltInToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
+                                                            $$ = execChain();
                                                             resetFlags();
                                                           }
             ;
 
 Redirections :  LT FILENAME GT FILENAME {
-                                          configureInput(getCommandAt(currentRedirIndex), open($2, O_RDONLY, 0600)); 
-                                          currentRedirIndex++;
-                                          configureOutput(getCommandAt(currentRedirIndex), open($4, O_TRUNC|O_CREAT|O_WRONLY, 0600)); 
-                                          currentRedirIndex++;
+                                          if(strcmp($2, $4) == 0) {
+                                            printf("Error: input and output files cannot be equal!\n");
+                                            resetPipeline();
+                                          } else {
+                                            int fd = open($2, O_RDONLY);
+                                            int fd1 = open($4, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                            if (fd == -1 || fd1 == -1) {
+                                              printf("Error: cannot open file for reading\n");
+                                            } else {
+                                              configureInput(getCommandAt(0), fd); 
+                                              configureOutput(getCommandAt(currentRedirIndex - 1), fd1); 
+                                            }
+                                          }
+                                          if($2) free($2);
+                                          if($4) free($4);
                                         }
               | GT FILENAME LT FILENAME {
-                                          configureOutput(getCommandAt(currentRedirIndex), open($2, O_TRUNC|O_CREAT|O_WRONLY, 0600)); 
-                                          currentRedirIndex++;
-                                          configureInput(getCommandAt(currentRedirIndex), open($4, O_RDONLY, 0600)); 
-                                          currentRedirIndex++;
+                                          if(strcmp($2, $4) == 0) {
+                                            printf("Error: input and output files cannot be equal!\n");
+                                            resetPipeline();
+                                          } else {
+                                            int fd = open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                            int fd1 = open($4, O_RDONLY);
+                                            configureInput(getCommandAt(0), fd1); 
+                                            configureOutput(getCommandAt(currentRedirIndex - 1), fd);
+                                          }
+                                          if($2) free($2);
+                                          if($4) free($4);
                                         }
-              | GT FILENAME             {configureOutput(getCommandAt(currentRedirIndex), open($2, O_TRUNC|O_CREAT|O_WRONLY, 0600));  currentRedirIndex++;}
-              | LT FILENAME             {configureInput(getCommandAt(currentRedirIndex), open($2, O_RDONLY, 0600));  currentRedirIndex++;}
+              | GT FILENAME             {
+                                          configureOutput(getCommandAt(currentRedirIndex - 1), open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666));
+                                          if($2) free($2);
+                                        }
+              | LT FILENAME             {
+                                          int fd = open($2, O_RDONLY);
+                                          if (fd == -1) {
+                                            printf("Error: cannot open file %s for reading\n", $2);
+                                          } else {
+                                            configureInput(getCommandAt(currentRedirIndex - 1), fd);
+                                          }
+                                          if($2) free($2);
+                                        }
               |
               ;
 
@@ -99,24 +128,18 @@ Pipeline :  Command PIPE_OP
                                 {
                                   latestCMDPiped = true;
                                   addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
-                                  // configureOutput(getCommandAt(currentRedirIndex), open("/tmp/pipe", O_TRUNC|O_CREAT|O_WRONLY, 0600));
+                                  cleanUp();
                                   currentRedirIndex++;
                                 }
             Pipeline {$$ = $4;}
           | Command {
                       addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
-                      if (latestCMDPiped) {
-                        // configureInput(getCommandAt(currentRedirIndex), open("/tmp/pipe", O_RDONLY, 0600));
-                        currentRedirIndex++;
-                      } else {
-                        // execChain();
-                        // resetPipeline();
-                      }
+                      cleanUp();
+                      currentRedirIndex++;
                     }
           ;
 
 Command: EXECUTABLE {
-                      latestCMD = $1;
                     }
          Options {$$ = $1;};
 
@@ -152,37 +175,38 @@ int execChain() {
   int exitCode = getExitCode();
   bool alwaysTrue = isAlwaysTrue();
 
-  DEBUG("isOR: %d isBuiltIn: %d alwaysTrue: %d exitCode: %d latestCMD: %s\n", isOR, isBuiltIn, alwaysTrue, exitCode, latestCMD);
+  DEBUG("isOR: %d isBuiltIn: %d alwaysTrue: %d exitCode: %d: %s\n", isOR, isBuiltIn, alwaysTrue, exitCode);
 
   if (isOR == -1) { // first time
     exitCode = execPipeline();
     resetPipeline();
+    cleanUp();
     return exitCode;
   }
 
   if(isOR && successExitCode(exitCode)) {
-    if (latestCMD) free(latestCMD);
-    latestCMD = NULL;
     cleanUp();
+    resetPipeline();
     return EXIT_SUCCESS;
   }
 
   if (isOR && failureExitCode(exitCode)) {
     exitCode = execPipeline();
     resetPipeline();
+    cleanUp();
     return exitCode;
   }
   
   if (!isOR && successExitCode(exitCode)) {
     exitCode = execPipeline();
     resetPipeline();
+    cleanUp();
     return exitCode;
   }
   
   if (!isOR && failureExitCode(exitCode)) {
-    if (latestCMD) free(latestCMD);
-    latestCMD = NULL;
     cleanUp();
+    resetPipeline();
     return EXIT_FAILURE;
   }
 
@@ -193,6 +217,7 @@ void resetFlags() {
   isBuiltIn = false;
   isOR = -1;
   currentRedirIndex = 0;
+  state = COMMAND_STATE;
   latestCMDPiped = false;
 }
 
@@ -239,10 +264,15 @@ void printToken(int token) {
 
 void yyerror (char *msg) {
   if (!silent) {
+    // showErrorLine();
     printToken(yychar);
+    // printf(").\n");
   }
   printf("Error: invalid syntax!\n");
-  setExitCode(EXIT_FAILURE);
+  cleanUp();
+  resetPipeline();
+  resetFlags();
+  state = COMMAND_STATE;
   printShellPrompt();
   yyparse();
 }
@@ -285,8 +315,9 @@ int main(int argc, char *argv[]) {
 
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
-
-  readConfigFile();
+  if (experimental) {
+    readConfigFile();
+  }
 
   initLexer(f);
   yyparse();

@@ -4,7 +4,7 @@
 #include "pipeline.h"
 
 void executeBuiltIn(char* name);
-char* findBinary(char* name);
+void findBinary(char* name);
 int execCommand(Command* command);
 bool isAlwaysTrue();
 void setAlwaysTrue(bool value);

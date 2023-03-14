@@ -1,1 +1,0 @@
-// open("cout.log", O_RDWR|O_CREAT|O_APPEND, 0600)

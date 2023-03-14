@@ -51,9 +51,6 @@ void executeBuiltIn(char* name) {
             }
         }
     }
-    if(name) {
-        free(name); 
-    }
     cleanUp();
 }
 
@@ -118,13 +115,13 @@ bool doesBinaryExist(char* name) {
     return true;
 }
 
-char* findBinary(char* name) {
+void findBinary(char* name) {
     if (!name) {
-        return NULL;
+        return;
     }
 
     if (strcmp(name, "") == 0) {
-        return NULL;
+        return;
     }
 
     // verify that the command is valid, by looking it up in the
@@ -155,7 +152,8 @@ char* findBinary(char* name) {
         if (stat(cmdPath, &st) == 0) {
             DEBUG("Command found at %s\n", cmdPath);
             addBinPathToOptions(cmdPath);
-            return cmdPath;
+            if (cmdPath) free(cmdPath);
+            break;
         }
         if (cmdPath) free(cmdPath);
         path = strtok(NULL, ":");
@@ -168,94 +166,99 @@ char* findBinary(char* name) {
     }
 
     if (fullPath) free(fullPath);
-    return NULL;
 }
-
 
 int execCommands(Command* commands) {
     if (!commands) {
         return 0;
     }
 
-    Command* currentCommand = commands;
+    int prev_pipe, pfds[2];
+    prev_pipe = STDIN_FILENO;
 
-    int i = 0;
-    int max = getCommandCount();
+    int n = getCommandCount();
+    
+    pid_t* pids = malloc(sizeof(pid_t) * n);
+    
+    for (int i = 0; i < n; i++) {
+        if (pipe(pfds) == -1) {perror("pipe");exit(1);}
 
-    pid_t* pids = malloc(sizeof(pid_t) * max);
+        Command* command = getCommandAt(i);
 
+        int commandIn = command->in;
+        int commandOut = command->out;
 
-    while (currentCommand != NULL) {
-        char* name = currentCommand->name;
-        // setPathForCommand(currentCommand, findBinary(name));
-        char* path = currentCommand->path;
-        // printf("")
-        
-        if (!path) {
-            cleanUp();
-            // command not found, return 127
-            return 127;
-        }
-
-        int pipefd[2];
-
-        if(pipe(pipefd) == -1) {
-            perror("pipe");
-            exit(1);
-        }
-        
         pid_t pid = fork();
-        pids[i] = pid;
-
+        
         if (pid == 0) {
-            // child process
-            
-            // if this is not the first command, redirect stdin to the read end of the pipe
-            if (i != 0) {
-                dup2(pipefd[0], STDIN_FILENO);
-            } else if (i != max) {
-                // if this is not the last command, redirect stdout to the write end of the pipe
-                dup2(pipefd[1], STDOUT_FILENO);
+            if (i != n -1) {
+                if (commandIn != STDIN_FILENO) {
+                    dup2(commandIn, STDIN_FILENO);
+                    close(commandIn);
+                } else {
+                    // Redirect previous pipe to stdin
+                    if (prev_pipe != STDIN_FILENO) {
+                        dup2(prev_pipe, STDIN_FILENO);
+                        close(prev_pipe);
+                    }
+                }
+
+                // Redirect stdout to current pipe
+                if (commandOut != STDOUT_FILENO) {
+                    dup2(commandOut, STDOUT_FILENO);
+                    close(commandOut);
+                } else {
+                    dup2(pfds[1], STDOUT_FILENO);
+                    close(pfds[1]);
+                }
+
+            } else {
+                if (commandIn != STDIN_FILENO) {
+                    dup2(commandIn, STDIN_FILENO);
+                    close(commandIn);
+                } else {
+                    // Get stdin from last pipe
+                    if (prev_pipe != STDIN_FILENO) {
+                        dup2(prev_pipe, STDIN_FILENO);
+                        close(prev_pipe);
+                    }
+                }
+                if (commandOut != STDOUT_FILENO) {
+                    dup2(commandOut, STDOUT_FILENO);
+                    close(commandOut);
+                }
             }
-
-            // close the pipe
-            close(pipefd[0]);
-            close(pipefd[1]);
-
-            // execute the command
-            execvp(path, currentCommand->args);
-            // if we get here, the command failed
-            perror("execvp");
-            exit(1);
-        } else if (pid < 0) {
-            // fork failed
-            perror("fork");
+            execvp(command->path, command->args);
             exit(1);
         } else {
-            // parent process
-            // close the pipe
-            close(pipefd[0]);
-            close(pipefd[1]);
+            //  close the file descriptors
+            if (commandIn != STDIN_FILENO) close(commandIn);
+            if (commandOut != STDOUT_FILENO) close(commandOut);
+
+            pids[i] = pid;
+
+            // Close read end of previous pipe (not needed in the parent)
+            if(prev_pipe != STDIN_FILENO) close(prev_pipe);
+            // Close write end of current pipe (not needed in the parent)
+            close(pfds[1]);
+            // Save read end of current pipe to use in next iteration
+            prev_pipe = pfds[0];
         }
-        
-        currentCommand = currentCommand->next;
-        i++;
     }
 
-    // wait for all the child processes to finish
-    int status;
-
-    for (int i = 0; i <= max; i++) {
+    // wait for all the children to finish
+    // and set the exitCode to the last child's exit code
+    for (int i = 0; i < n; i++) {
+        int status;
         waitpid(pids[i], &status, 0);
+        if (WIFEXITED(status)) {
+            exitCode = WEXITSTATUS(status);
+        }
     }
 
-    if (pids) free(pids);
-    
-    cleanUp();
-    // return the exit code of the last command
-    return WEXITSTATUS(status);    
+    if(pids) free(pids);
+    return exitCode;
 }
-
 
 /**
  * @brief Execute the command 
@@ -276,9 +279,6 @@ int execCommand(Command* command) {
     findBinary(commandName);
     // command not found, return 127
     if (noCommand()) {
-        if(commandName) {
-            free(commandName);
-        }
         cleanUp();
         return 127;
     }
@@ -290,8 +290,9 @@ int execCommand(Command* command) {
  
     char* commandPath = getBinPath();
 
-    int cmdFileDescriptorIn = command->in;
-    int cmdFileDescriptorOut = command->out;
+    int commandIn = command->in;
+    int commandOut = command->out;
+    
 
     int pipefd[2];
     
@@ -303,46 +304,25 @@ int execCommand(Command* command) {
 
     pid_t pid = fork();
     if (pid == 0) {
-        // read the input from the pipe
-        if (cmdFileDescriptorIn != -1) {
-            dup2(pipefd[0], STDIN_FILENO);
-        }
-        // write the output to the pipe
-        if (cmdFileDescriptorOut != -1) {
-            dup2(cmdFileDescriptorOut, STDOUT_FILENO);
+        // if command in is not stdin, redirect it
+        if (commandIn != STDIN_FILENO) {
+            dup2(commandIn, STDIN_FILENO);
+            close(commandIn);
         }
 
-        close(pipefd[0]);
-        close(pipefd[1]);
+        // if command out is not stdout, redirect it
+        if (commandOut != STDOUT_FILENO) {
+            dup2(commandOut, STDOUT_FILENO);
+            close(commandOut);
+        }
 
         // this will be performed by the child process
         // so execute the command
         DEBUG("Exec %s\n", commandPath);
+
         execv(commandPath, command->args);
 
     } else {
-        // write the cmdFileDescriptorIn to the pipe
-        if (cmdFileDescriptorIn != STDIN_FILENO) {
-            char buffer[1024];
-            int bytesRead = 0;
-            while ((bytesRead = read(cmdFileDescriptorIn, buffer, 1024)) > 0) {
-                write(pipefd[1], buffer, bytesRead);
-            }
-            close(cmdFileDescriptorIn);
-        }
-        close(pipefd[1]);
-
-        // write the output to the cmdFileDescriptorOut
-        if (cmdFileDescriptorOut != STDOUT_FILENO) {
-            char buffer[1024];
-            int bytesRead = 0;
-            while ((bytesRead = read(pipefd[0], buffer, 1024)) > 0) {
-                write(cmdFileDescriptorOut, buffer, bytesRead);
-            }
-            close(cmdFileDescriptorOut);
-        }
-        close(pipefd[0]);
-
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
         int status;
@@ -350,6 +330,7 @@ int execCommand(Command* command) {
         exitCode = WEXITSTATUS(status);
         cleanUp();
         
+        // if (commandName) free(commandName);
         return exitCode;
     }
     return 0;
