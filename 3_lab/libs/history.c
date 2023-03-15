@@ -3,6 +3,11 @@
 History* history = NULL;
 static int historyIndex = 0;
 
+/**
+ * @brief Creates a new history
+ * 
+ * @param cleanPrevious whether to clean the previous history or not
+ */
 void newHistory(bool cleanPrevious) {
     if (cleanPrevious && history) {
         cleanUp();
@@ -17,6 +22,12 @@ void newHistory(bool cleanPrevious) {
     history->numCommands = 0;
 }
 
+/**
+ * @brief adds a command to the history
+ * 
+ * @param command the command to add
+ * 
+ */
 void addToHistory(char* command) {
     if (!history) {
         newHistory(DONT_CLEAN_PREV);
@@ -40,6 +51,12 @@ void addToHistory(char* command) {
     historyIndex = history->numCommands;
 }
 
+/**
+ * @brief checks if there is any history
+ * 
+ * @return true if there is any history
+ * @return false if there is no history
+ */
 bool anyHistory() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -48,7 +65,11 @@ bool anyHistory() {
     return history->numCommands > 0;
 }
 
-
+/**
+ * @brief Get the most recent command
+ * 
+ * @return char* the most recent command
+ */
 char* getMostRecent() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -57,7 +78,11 @@ char* getMostRecent() {
     return history->commands[history->numCommands - 1];
 }
 
-
+/**
+ * @brief gets the previous command in the history
+ * 
+ * @return char* the previous command
+ */
 char* getPrevHistory() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -72,6 +97,11 @@ char* getPrevHistory() {
     return history->commands[historyIndex];
 }
 
+/**
+ * @brief get the previous command's arguments
+ * 
+ * @return char** the previous command's arguments
+ */
 char** getPrevHistoryArgs() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -80,6 +110,11 @@ char** getPrevHistoryArgs() {
     return history->args[historyIndex];
 }
 
+/**
+ * @brief get the number of arguments of the previous command
+ * 
+ * @return int the number of arguments of the previous command
+ */
 int getPreviousHistoryArgsCount() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -88,6 +123,11 @@ int getPreviousHistoryArgsCount() {
     return history->numArgs[historyIndex];
 }
 
+/**
+ * @brief get the number of arguments of the next command
+ * 
+ * @return int the number of arguments of the next command
+ */
 int getNextHistoryArgsCount() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -96,7 +136,11 @@ int getNextHistoryArgsCount() {
     return history->numArgs[historyIndex];
 }
 
-
+/**
+ * @brief get the next command in the history
+ * 
+ * @return char* the next command
+ */
 char* getNextHistory() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -111,6 +155,11 @@ char* getNextHistory() {
     return history->commands[historyIndex];
 }
 
+/**
+ * @brief get next command's arguments
+ * 
+ * @return char**  the next command's arguments
+ */
 char** getNextHistoryArgs() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -120,7 +169,12 @@ char** getNextHistoryArgs() {
     return history->args[historyIndex];
 }
 
-
+/**
+ * @brief get the command at the given index
+ * 
+ * @param index the index of the command
+ * @return char* the command at the given index
+ */
 char* getHistoryAt(int index) {
     if (!history) {
         DEBUG("No history to check\n");
@@ -129,7 +183,11 @@ char* getHistoryAt(int index) {
     return history->commands[index];
 }
 
-
+/**
+ * @brief get the arguments of the most recent command
+ * 
+ * @return char** the arguments of the most recent command
+ */
 char** getArgsOfMostRecent() {
     if (!history) {
         DEBUG("No history to check\n");
@@ -138,6 +196,12 @@ char** getArgsOfMostRecent() {
     return history->args[history->numCommands - 1];
 }
 
+/**
+ * @brief Get the Args Of History At the given index
+ * 
+ * @param index the index of the command
+ * @return char** the arguments of the command at the given index
+ */
 char** getArgsOfHistoryAt(int index) {
     if (!history) {
         DEBUG("No history to check\n");
@@ -146,7 +210,11 @@ char** getArgsOfHistoryAt(int index) {
     return history->args[index];
 }
 
-
+/**
+ * @brief Get the Number Of History Commands object
+ * 
+ * @return int the number of commands in the history
+ */
 int getNumberOfHistoryCommands() {
     if (!history) {
         return 0;
@@ -154,7 +222,10 @@ int getNumberOfHistoryCommands() {
     return history->numCommands;
 }
 
-
+/**
+ * @brief prints the history
+ * 
+ */
 void printSessionHistory() {
     if (!history) {
         DEBUG("No history to print\n");

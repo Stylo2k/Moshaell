@@ -51,6 +51,11 @@ void printStartOfLine() {
     resetColor();
 }
 
+/**
+ * @brief Get the current working directory but in a nicer format cuz fuck getcwd
+ *  so instead of the full path, we set the $HOME to ~
+ * @return char* 
+ */
 char* getCwd_() {
     char* cwd = getcwd(NULL, 0);
     // replace the home directory with a tilde
@@ -65,6 +70,11 @@ char* getCwd_() {
     return cwd;
 }
 
+/**
+ * @brief gets the user from the USER environment variable
+ * 
+ * @return char* obviously the user
+ */
 char* getUser() {
     char* userEnv = getenv( "USER" );
     char* user = NULL;
@@ -88,12 +98,21 @@ char* getUser() {
     return user;
 }
 
+/**
+ * @brief prints the user in a nice format with the colors set from the rc file
+ * 
+ * @param user the user string
+ */
 void printUser(char* user) {
     getNameColor();
     printf("%s%s@", getNameStart(), user);
     resetColor();
 }
 
+/**
+ * @brief prints the hostname in a nice format with the colors set from the rc file
+ * 
+ */
 void printHostName() {
     // print the hostname
     char hostname[1024];
@@ -105,12 +124,21 @@ void printHostName() {
     resetColor();
 }
 
+/**
+ * @brief prints the current working directory in a nice format with the colors set from the rc file
+ * 
+ * @param cwd 
+ */
 void printCwd(char* cwd) {
     getPathColor();
     printf("%s ", cwd);
     resetColor();
 }
 
+/**
+ * @brief prints the prompt in a nice format with the colors set from the rc file
+ * 
+ */
 void printPlainPrompt() {
     printf("\n");
 
@@ -130,11 +158,19 @@ void printPlainPrompt() {
     printStartOfLine();
 }
 
+/**
+ * @brief makes a new input buffer for reading input
+ * 
+ */
 void newInputBuffer() {
     inputBuffer = calloc(MAX_BUFFER, sizeof(char));
     BUFFER_INDEX = 0;
 }
 
+/**
+ * @brief frees the input buffer
+ * 
+ */
 void freeInputBuffer() {
     if (inputBuffer) {
         free(inputBuffer);
@@ -144,6 +180,11 @@ void freeInputBuffer() {
     }
 }
 
+/**
+ * @brief adds a char to the input buffer
+ * 
+ * @param input the char to add
+ */
 void addInputToBuffer(char input) {
     if (!inputBuffer) {
         newInputBuffer();
@@ -156,6 +197,9 @@ void addInputToBuffer(char input) {
     BUFFER_INDEX++;
 }
 
+//@experimental
+// callback for when the user presses ctrl + c
+// char : 4
 void listenForCtrlD() {
     if (BUFFER_INDEX == 0) {
         cleanUp();
@@ -206,6 +250,10 @@ void listenForUpArrow() {
     }
 }
 
+/**
+ * @brief listens for the down arrow key
+ * 
+ */
 void listenForDownArrow() {
     char* history = getNextHistory();
     char** args = getNextHistoryArgs();
@@ -236,6 +284,12 @@ void listenForDownArrow() {
     }
 }
 
+/**
+ * @brief removes the last character from the input buffer
+ * 
+ * @return true if the last character was removed
+ * @return false if the last character was not removed
+ */
 int removeLastCharFromBuffer() {
     bool removed = false;
     if(!inputBuffer) return removed;
@@ -266,6 +320,7 @@ void listenForRightArrow() {
      */
 }
 
+// @experimental
 // Char : 127
 void listenForBackspace() {
     // remove the last character from the input buffer
@@ -276,11 +331,17 @@ void listenForBackspace() {
     printf("\b \b");
 }
 
+// @experimental
+// Char : 10
 void newLineCallBack() {
     ungetc('\n', stdin);
     printf("\n");
 }
 
+/**
+ * @brief listens for ctrl + backspace
+ * does not work 😬
+ */
 void listenForCtrlBackspace() {
     fprintf(stderr, "Ctrl + Backspace %d\n", BUFFER_INDEX);
     // remove the previous word from the input buffer
@@ -295,7 +356,14 @@ void listenForCtrlBackspace() {
     }
 }
 
-
+/**
+ * @brief listens for a single key
+ * 
+ * @param char_ the key to listen for
+ * @param callback the callback function to call when the key is matched
+ * @return true if the key is matched
+ * @return false if the key is not matched
+ */
 bool listenForOneKey(int char_, void (*callback)()) {
     tty_raw(STDIN_FILENO);
     int c = getchar();
@@ -310,7 +378,16 @@ bool listenForOneKey(int char_, void (*callback)()) {
     return false;
 }
 
-
+/**
+ * @brief listens for a sequence of keys
+ * 
+ * @param char_ the sequence of keys to listen for
+ * @param size the size of the char_ array
+ * @param callback the callback function to call when the sequence is matched
+ * @param addToBuffer the sequence of keys will be added to the input buffer if this is true
+ * @return true if the sequence of keys is matched
+ * @return false if the sequence of keys is not matched
+ */
 bool listenForSeqKeys(int* char_, int size, void (*callback)(), bool addToBuffer) {
     // match the sequence of keys in the char_ array
     char* buffer = calloc(size, sizeof(char));
@@ -341,6 +418,10 @@ bool listenForSeqKeys(int* char_, int size, void (*callback)(), bool addToBuffer
     return true;
 }
 
+/**
+ * @brief print the input buffer in green since the binary exists
+ * 
+ */
 void rightBin() {
     printStartOfLine();
     printf("\033[0;32m");
@@ -348,6 +429,10 @@ void rightBin() {
     printf("\033[0m");
 }
 
+/**
+ * @brief print the input buffer in red since the binary does not exist
+ * 
+ */
 void wrongBin() {
     printStartOfLine();
     printf("\033[0;31m");

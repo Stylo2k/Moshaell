@@ -2,6 +2,9 @@
 
 Options* options = NULL;
 
+/**
+ * @brief Cleans up the options
+ */
 void cleanUp() {
     if (!options) {
         DEBUG("no options to clean up\n");
@@ -31,7 +34,11 @@ void cleanUp() {
     options = NULL;
 }
 
-
+/**
+ * @brief Creates a new options struct
+ * 
+ * @param cleanPrevious whether to clean the previous options or not
+ */
 void newOptions(bool cleanPrevious) {
     if (cleanPrevious && options) {
         cleanUp();
@@ -46,7 +53,11 @@ void newOptions(bool cleanPrevious) {
     options->commandArgs[1] = NULL;
 }
 
-
+/**
+ * @brief Get the Options object
+ * 
+ * @return char** the options
+ */
 char** getOptions() {
     if (!options || !options->commandArgs) {
         DEBUG("Trying to get options, but no options exist\n");
@@ -55,6 +66,11 @@ char** getOptions() {
     return options->commandArgs;
 }
 
+/**
+ * @brief Add an option to the options
+ * 
+ * @param option the option to add
+ */
 void addOption(char* option) {
     if (!options) {
         newOptions(DONT_CLEAN_PREV);
@@ -80,6 +96,11 @@ void addOption(char* option) {
     }
 }
 
+/**
+ * @brief Get the Number Of Options
+ * 
+ * @return int the number of options
+ */
 int getNumberOfOptions() {
     if (!options || !options->commandArgs) {
         DEBUG("Trying to get number of options, but no options exist\n");
@@ -88,7 +109,11 @@ int getNumberOfOptions() {
     return options->numArgs;
 }
 
-
+/**
+ * @brief add the bin path to the options (first index)
+ * 
+ * @param bin the bin path
+ */
 void addBinPathToOptions(char* bin) {
     if (!options) {
         newOptions(DONT_CLEAN_PREV);
@@ -98,16 +123,32 @@ void addBinPathToOptions(char* bin) {
     strcpy(options->commandArgs[0], bin);
 }
 
-
+/**
+ * @brief check if there is no command
+ * 
+ * @return true if there is no command
+ * @return false if there is a command
+ */
 bool noCommand() {
     return !options || !options->commandArgs || !options->commandArgs[0];
 }
 
+/**
+ * @brief check if there are no options
+ * 
+ * @return true if there are no options
+ * @return false if there are options
+ */
 bool noOptions() {
     bool here = !options || !options->commandArgs;
     return here || !options->commandArgs[1];
 }
 
+/**
+ * @brief Get the Bin Path 
+ * 
+ * @return char* the bin path
+ */
 char* getBinPath() {
     if (!options || !options->commandArgs) {
         DEBUG("Trying to get bin path, but no options exist\n");
@@ -116,7 +157,11 @@ char* getBinPath() {
     return options->commandArgs[0];
 }
 
-
+/**
+ * @brief Get the Args object entirely
+ * 
+ * @return char** th array of args
+ */
 char** getArgs() {
     if (!options || !options->commandArgs) {
         DEBUG("Trying to get options, but no options exist\n");
@@ -125,7 +170,12 @@ char** getArgs() {
     return options->commandArgs;
 }
 
-
+/**
+ * @brief Get the Arg At a given index
+ * 
+ * @param index the index of the arg to get
+ * @return char* the arg at the given index
+ */
 char* getArgAt(int index) {
     if (!options || !options->commandArgs) {
         DEBUG("Trying to get option at %d, but no options exist\n", index);

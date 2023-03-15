@@ -59,7 +59,7 @@ Chain :     Pipeline Redirections
                                                           {
                                                             int exitCode = 0;
                                                             if (latestCMDPiped) {
-                                                              exitCode = execCommands(getCommand(0));
+                                                              exitCode = execCommands(getCommandAt(0));
                                                             } else {
                                                               exitCode  = execChain();
                                                             }
@@ -182,7 +182,7 @@ int execPipeline() {
   int index = 0;
   int exitCode = 0;
   Command* command = NULL;
-  while ((command = getCommand(index))) {
+  while ((command = getCommandAt(index))) {
     exitCode = execCommand(command);
     index++;
   }

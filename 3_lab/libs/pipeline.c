@@ -3,11 +3,18 @@
 
 static Pipeline *pipeline = NULL;
 
-
+/**
+ * @brief Creates a new command
+ * 
+ * @param name the name of the command
+ * @param args the arguments of the command
+ * @param argCount the number of arguments
+ * @return Command* the newly created command
+ */
 Command *newCommand(char* name, char** args, int argCount) {
     Command *cmd = malloc(sizeof(Command));
     cmd->name = strdup(name);
-    cmd->path = findBinary(name);
+    cmd->path = NULL;
     // copy the args
     cmd->args = malloc(sizeof(char*) * (argCount + 2));
     cmd->args[0] = strdup(name);
@@ -27,6 +34,10 @@ Command *newCommand(char* name, char** args, int argCount) {
     return cmd;
 }
 
+/**
+ * @brief makes sure the pipeline is initialized if not it will initialize it
+ * 
+ */
 void assertPipeline() {
     if (!pipeline) {
         pipeline = malloc(sizeof(Pipeline));
@@ -35,6 +46,11 @@ void assertPipeline() {
     }
 }
 
+/**
+ * @brief adds a command to the pipeline
+ * 
+ * @param cmd the command to add
+ */
 void addCommandToPipeline(Command *cmd) {
     assertPipeline();
     // add the command to the pipeline which is a linked list
@@ -50,27 +66,23 @@ void addCommandToPipeline(Command *cmd) {
     pipeline->command_count++;
 }
 
+/**
+ * @brief adds a command to the pipeline with the given arguments
+ * 
+ * @param name the name of the command
+ * @param args the args
+ * @param argCount  the number of args
+ */
 void addCommandToPipelineWithArgs(char* name, char** args, int argCount) {
     Command *cmd = newCommand(name, args, argCount);
+    cmd->path = findBinary(cmd->name);
     addCommandToPipeline(cmd);
 }
 
 
-Command* getCommand(int index) {
-    assertPipeline();
-    if (index > pipeline->command_count) {
-        return NULL;
-    }
-    Command *current = pipeline->commands;
-    int i = 0;
-    while (i < index) {
-        current = current->next;
-        i++;
-    }
-    return current;
-}
-
-
+/**
+ * @brief frees the pipeline and all the commands in it
+ */
 void resetPipeline() {
     if (pipeline) {
         Command *current = pipeline->commands;
@@ -93,11 +105,21 @@ void resetPipeline() {
     }
 }
 
+/**
+ * @brief get the first command in the pipeline, this is a linked list so it will be the head
+ * 
+ * @return Command* the first command in the pipeline
+ */
 Command* getFirstCommand() {
     assertPipeline();
     return pipeline->commands;
 }
 
+/**
+ * @brief the last command in the pipeline is the one with the next pointer set to NULL
+ * 
+ * @return Command* the last command in the pipeline
+ */
 Command* getLastCommand() {
     assertPipeline();
     Command *current = pipeline->commands;
@@ -107,7 +129,12 @@ Command* getLastCommand() {
     return current;
 }
 
-
+/**
+ * @brief get a command at a given index
+ * 
+ * @param index the index to get the command at
+ * @return Command* the command at that index, NULL if it doesn't exist
+ */
 Command* getCommandAt(int index) {
     assertPipeline();
     if (index > pipeline->command_count) {
@@ -122,7 +149,12 @@ Command* getCommandAt(int index) {
     return current;
 }
 
-
+/**
+ * @brief sets the input of a command to a given file descriptor
+ * 
+ * @param cmd the command to set the input of
+ * @param fd the file descriptor to set the input to
+ */
 void configureInput(Command *cmd, int fd) {
     if (!cmd) {
         return;
@@ -133,6 +165,12 @@ void configureInput(Command *cmd, int fd) {
     cmd->in = fd;
 }
 
+/**
+ * @brief configures the output of a command to a given file descriptor
+ * 
+ * @param cmd the command to configure the output of 
+ * @param fd the file descriptor to set the output to
+ */
 void configureOutput(Command *cmd, int fd) {
     if(!cmd) {
         return;
@@ -143,12 +181,24 @@ void configureOutput(Command *cmd, int fd) {
     cmd->out = fd;
 }
 
+/**
+ * @brief configures the error of a command to a given file descriptor
+ * 
+ * @param name the name of the command
+ * @param args the args of the command
+ * @param argCount the number of args
+ */
 void addBuiltInToPipelineWithArgs(char* name, char** args, int argCount) {
     Command *cmd = newCommand(name, args, argCount);
     cmd->isBuiltIn = true;
     addCommandToPipeline(cmd);
 }
 
+/**
+ * @brief gets the number of commands in the pipeline
+ * 
+ * @return int the number of commands in the pipeline
+ */
 int getCommandCount() {
     assertPipeline();
     return pipeline->command_count;

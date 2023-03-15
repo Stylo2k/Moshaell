@@ -3,6 +3,7 @@
 
 static FILE* rcFile = NULL;
 
+// supported colors
 typedef enum COLORS {
     RED,
     GREEN,
@@ -13,6 +14,9 @@ typedef enum COLORS {
     WHITE
 } COLOR;
 
+/**
+ * some default values for the prompt
+ */
 static char* PROMPT_START = "╰─Σ";
 static char* NAME_START = "╭─";
 static COLOR NAME_COLOR = RED;
@@ -20,7 +24,11 @@ static COLOR HOST_NAME_COLOR = RED;
 static COLOR PATH_COLOR = MAGENTA;
 static COLOR PROMPT_START_COLOR = RED;
 
-
+/**
+ * @brief <b>opens</b> the config file
+ *  this function will look in the current directory for a .sheeshrc file
+ *  if it doesn't find one, it will look in the home directory
+ */
 void openConfigFile() {
     //first look locally for the .sheeshrc file
     rcFile = fopen(".sheeshrc", "r");
@@ -39,6 +47,11 @@ void openConfigFile() {
     }
 }
 
+/**
+ * @brief color printing function
+ * 
+ * @param color the color to print in
+ */
 void toColor(COLOR color) {
     switch(color) {
         case RED:
@@ -69,6 +82,12 @@ void toColor(COLOR color) {
     }
 }
 
+/**
+ * @brief convert a char to a color since we dont want the user to write the unicode
+ * 
+ * @param char_ the char to convert
+ * @return COLOR the color
+ */
 COLOR charToColor(char* char_) {
     char color = char_[0];
     // convert the color to int
@@ -93,13 +112,22 @@ COLOR charToColor(char* char_) {
     }
 }
 
+/**
+ * @brief closes the config file
+ * 
+ */
 void closeConfigFile() {
     if (rcFile) {
         fclose(rcFile);
     }
 }
 
-
+/**
+ * @brief strips the line from any garbage the user could have put in
+ * 
+ * @param line the line to strip
+ * @return char* the stripped line
+ */
 char* stripLine(char* line) {
     // if there is a newline at the end, remove it
     if (line[strlen(line) - 1] == '\n') {
@@ -128,7 +156,12 @@ char* stripLine(char* line) {
     return line;
 }
 
-
+/**
+ * @brief looks up a string in the config file STRING=VALUE
+ * 
+ * @param string the string to look up
+ * @return char* the value of the string
+ */
 char* lookUpInConfigFile(char* string) {
     if (!rcFile) {
         return NULL;
@@ -145,7 +178,7 @@ char* lookUpInConfigFile(char* string) {
         if (line[0] == '#') {
             continue;
         }
-
+        // I LOVEEEEEEEE INDENTATION
         char* key = strtok(line, "=");
         if (key) {
             key = stripLine(key);
@@ -161,6 +194,10 @@ char* lookUpInConfigFile(char* string) {
     return NULL;
 }
 
+/**
+ * @brief reads the config file and sets the variables
+ * 
+ */
 void readConfigFile() {
     openConfigFile();
     char* value = lookUpInConfigFile("prompt_start");

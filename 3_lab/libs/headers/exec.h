@@ -3,7 +3,7 @@
 
 #include "pipeline.h"
 
-void executeBuiltIn(char* name);
+void executeBuiltIn(Command* command);
 char* findBinary(char* name);
 int execCommand(Command* command);
 bool isAlwaysTrue();

@@ -5,55 +5,90 @@ static bool alwaysTrue = false;
 
 #include "../common.h"
 
-char* builtin[] = {
-    "status",
-    "exit",
-    "history",
-    "cd",
-    NULL
+typedef void (*function_ptr)(char*);
+
+typedef struct {
+    char* name;
+    function_ptr func;
+} BuiltIn;
+
+void statusFunc(char* name);
+void historyFunc(char* name);
+void exitFunc(char* name);
+void changeDirectory(char* name);
+
+
+BuiltIn builtin[] = {
+    {"status", statusFunc},
+    {"history", historyFunc},
+    {"exit", exitFunc},
+    {"cd", changeDirectory}
 };
 
-void executeBuiltIn(char* name) {
+void statusFunc(char* _) {
+    printf("The most recent exit code is: %d\n", exitCode);
+    alwaysTrue = true;
+}
+
+void historyFunc(char* _) {
+    printSessionHistory();
+}
+
+void exitFunc(char* name) {
+    cleanUp();
+    finalizeLexer();
+    free(name);
+    exit(0);
+}
+
+void changeDirectory(char* name) {
+    if (noOptions()) {
+            printf("Error: cd requires folder to navigate to!\n");
+            exitCode = 2;
+    } else {
+        addBinPathToOptions(name);
+        exitCode = chdir(getArgAt(1));
+        // if the directory does not exist, print an error
+        if (exitCode == -1) {
+            printf("Error: cd directory not found!\n");
+            exitCode = 2;
+        }
+    }
+}
+
+
+/**
+ * @brief Executes a built in command
+ * 
+ * @param command the command to execute
+ */
+void executeBuiltIn(Command* command) {
+    char* name = command->name;
     if (!name) {
         return;
     }
 
-    if (strcmp(name, "history") == 0) {
-        printSessionHistory();
-    } else if (experimental) {
+    if (experimental) {
         addToHistory(name);
     }
-    
-    if (strcmp(name, "status") == 0) {
-        printf("The most recent exit code is: %d\n", exitCode);
-        alwaysTrue = true;
-    }
-    
-    if (strcmp(name, "exit") == 0) {
-        cleanUp();
-        finalizeLexer();
-        free(name);
-        exit(0);
-    }
 
-    // TODO: fix cd -
-    if (strcmp(name, "cd") == 0) {
-        if (noOptions()) {
-            printf("Error: cd requires folder to navigate to!\n");
-            exitCode = 2;
-        } else {
-            addBinPathToOptions(name);
-            exitCode = chdir(getArgAt(1));
-            // if the directory does not exist, print an error
-            if (exitCode == -1) {
-                printf("Error: cd directory not found!\n");
-                exitCode = 2;
-            }
+    for (int i = 0; i < sizeof(builtin) / sizeof(BuiltIn); i++) {
+        if (strcmp(name, builtin[i].name) == 0) {
+            builtin[i].func(name);
+            return;
         }
     }
+
     cleanUp();
 }
 
+/**
+ * @brief Checks if a binary exists
+ * 
+ * @param name  the name of the binary
+ * @return true  if the binary exists
+ * @return false  if the binary does not exist
+ */
 bool doesBinaryExist(char* name) {
     if (!name) {
         return false;
@@ -62,8 +97,8 @@ bool doesBinaryExist(char* name) {
         return false;
     }
 
-    for(int i = 0; builtin[i] != NULL; i++) {
-        if (strcmp(name, builtin[i]) == 0) {
+    for (int i = 0; i < sizeof(builtin) / sizeof(BuiltIn); i++) {
+        if (strcmp(name, builtin[i].name) == 0) {
             return true;
         }
     }
@@ -115,6 +150,12 @@ bool doesBinaryExist(char* name) {
     return true;
 }
 
+/**
+ * @brief Finds the binary in the path
+ * 
+ * @param name the name of the binary
+ * @return char*  the path to the binary
+ */
 char* findBinary(char* name) {
     if (!name) {
         return NULL;
@@ -158,18 +199,18 @@ char* findBinary(char* name) {
         if (cmdPath) free(cmdPath);
         path = strtok(NULL, ":");
     }
-    
-    if (!builtin && path == NULL) {
-        printf("Error: command not found!\n");
-        // if the command is not found, we should just ignore it
-        exitCode = 127;
-    }
 
     if (fullPath) free(fullPath);
 
     return NULL;
 }
 
+/**
+ * @brief Executes a list of commands
+ * 
+ * @param commands the list of commands
+ * @return int the exit code of the last command
+ */
 int execCommands(Command* commands) {
     if (!commands) {
         return 0;
@@ -274,7 +315,7 @@ int execCommand(Command* command) {
 
     if (builtIn) {
         DEBUG("Executing built-in command %s\n", commandName);
-        executeBuiltIn(commandName);
+        executeBuiltIn(command);
         cleanUp();
         return exitCode;
     }
