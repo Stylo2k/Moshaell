@@ -53,6 +53,11 @@ void setYYlval(void *obj, YylvalType type);
 
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
+
+"*"[A-Za-z0-9_"."]*      {
+                        setYYlval(yytext, YYVAL_STRING);
+                        return GLOB;
+                    }
 ">"                 {
                         state = FILENAME_STATE;
                         return GT;

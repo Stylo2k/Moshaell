@@ -1,6 +1,7 @@
 %{
   #include "common.h"
-  
+  #include <glob.h>
+
   void resetFlags();
   
   extern char *yytext;
@@ -18,10 +19,6 @@
   int execPipeline();
 
   int currentRedirIndex = 0;
-
-  #define NOTPIPED false
-  #define PIPED true
-
 %}
 
 
@@ -31,9 +28,9 @@
   char* str;
 }
 
-%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE
+%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE GLOB
 
-%type <str> EXECUTABLE OPTION BUILTIN FILENAME Command
+%type <str> EXECUTABLE OPTION BUILTIN FILENAME Command GLOB
 %type <ival> InputLine Chain Pipeline
 
 %start program
@@ -164,6 +161,31 @@ Command: EXECUTABLE {
 Options: OPTION { 
                     addOption($1);
                 } 
+        Options
+        |
+        GLOB { 
+                        char **found;
+                        glob_t gstruct;
+                        int r;
+                        r = glob($1, GLOB_NOCHECK, NULL, &gstruct);
+                        
+                        if( r!=0 )
+                        {
+                            if( r==GLOB_NOMATCH )
+                                fprintf(stderr,"No matches\n");
+                            else
+                                fprintf(stderr,"Some kinda glob error\n");
+                            exit(1);
+                        }
+                        
+                        found = gstruct.gl_pathv;
+                        while(*found)
+                        {
+                            addOption(strdup(*found));
+                            found++;
+                        }
+                        globfree(&gstruct);
+              }
         Options
         |
         ;
