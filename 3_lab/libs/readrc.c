@@ -4,6 +4,15 @@
 static FILE* rcFile = NULL;
 static char* rcFilePath = NULL;
 
+typedef struct Alias {
+    char* name;
+    char* command;
+    struct Alias* next;
+} Alias;
+
+static Alias* aliasList = NULL;
+
+
 // supported colors
 typedef enum COLORS {
     RED,
@@ -135,6 +144,13 @@ void closeConfigFile() {
  * @return char* the stripped line
  */
 char* stripLine(char* line) {
+    if (!line) {
+        return NULL;
+    }
+    if (strlen(line) == 1) {
+        return line;
+    }
+
     // if there is a newline at the end, remove it
     if (line[strlen(line) - 1] == '\n') {
         line[strlen(line) - 1] = '\0';
@@ -200,6 +216,119 @@ char* lookUpInConfigFile(char* string) {
     return NULL;
 }
 
+void assertAliasList() {
+    if (!aliasList) {
+        aliasList = calloc(1, sizeof(Alias));
+    }
+}
+
+void addAlias(char* alias, char* command) {
+    if (!alias || !command) {
+        return;
+    }
+    assertAliasList();
+    Alias* alias_ = aliasList;
+    while (alias_->next) {
+        // if you try to add an alias that already exists, just update it
+        if (strcasecmp(alias_->name, alias) == 0) {
+            free(alias_->command);
+            alias_->command = strdup(command);
+            return;
+        }
+        alias_ = alias_->next;
+    }
+
+    alias_->name = strdup(alias);
+    alias_->command = strdup(command);
+    alias_->next = calloc(1, sizeof(Alias));
+}
+
+char* getCommandFromAlias(char* alias) {
+    if (!alias) {
+        return NULL;
+    }
+    assertAliasList();
+    Alias* alias_ = aliasList;
+    while (alias_->next) {
+        if (strcasecmp(alias_->name, alias) == 0) {
+            return alias_->command;
+        }
+        alias_ = alias_->next;
+    }
+    return NULL;
+}
+
+void freeAliasList() {
+    if (!aliasList) {
+        return;
+    }
+    Alias* alias_ = aliasList;
+    while (alias_->next) {
+        Alias* next = alias_->next;
+        free(alias_->name);
+        free(alias_->command);
+        free(alias_);
+        alias_ = next;
+    }
+    free(alias_);
+}
+
+void assignAliases() {
+    if (!rcFile) {
+        return;
+    }
+    fseek(rcFile, 0, SEEK_SET);
+    // look up every line that starts with alias and add it to the alias list
+    // aliases are of the form : alias name="command"
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    while ((read = getline(&line, &len, rcFile)) != -1) {
+        if (line[0] == '#') {
+            continue;
+        }
+        // I LOVEEEEEEEE INDENTATION
+        // alias name="command"
+        // check whether the line starts with alias
+        if (strncasecmp(line, "alias", 5) == 0) {
+            // get the name
+            char* name = strtok(line, "=");
+            if (name) {
+                name = stripLine(name);
+                // get the command
+                char* command = strtok(NULL, "=");
+                if (command) {
+                    command = stripLine(command);
+                    // remove the leading alias
+                    name += 5;
+                    // remove the leading whitespace
+                    while (isspace(name[0])) {
+                        name++;
+                    }
+                    // remove the trailing whitespace
+                    int i = strlen(name) - 1;
+                    while (isspace(name[i])) {
+                        name[i] = '\0';
+                        i--;
+                    }
+                    // remove the leading whitespace
+                    while (isspace(command[0])) {
+                        command++;
+                    }
+                    // remove the trailing whitespace
+                    i = strlen(command) - 1;
+                    while (isspace(command[i])) {
+                        command[i] = '\0';
+                        i--;
+                    }
+                    addAlias(name, command);
+                }
+            }
+        }
+    }
+
+}
+
 /**
  * @brief reads the config file and sets the variables
  * 
@@ -241,6 +370,9 @@ void readConfigFile() {
     if (value) {
         NAME_START = value;
     }
+
+    assignAliases();
+
     closeConfigFile();
 }
 

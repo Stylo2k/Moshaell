@@ -443,7 +443,7 @@ void wrongBin() {
 void checkBin(bool* alreadyReadBin, int* cmdEndIndex) {
     if (BUFFER_INDEX == 0) return;
     bool binExists = doesBinaryExist(inputBuffer);
-
+    binExists = binExists || getCommandFromAlias(inputBuffer);
     if(readingCommand() && binExists) {
         // remove the text then print the color green
         rightBin();
@@ -503,12 +503,23 @@ void printShellPrompt() {
             }
 
             if(listenForOneKey(10, newLineCallBack)) {
-                // read any remaining characters in the stdin
-                // write the entire input buffer to the stdin using ungetc
-                for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
-                    ungetc(inputBuffer[i], stdin);
+                char* aliased = getCommandFromAlias(inputBuffer);
+                if (aliased) {
+                    freeInputBuffer();
+                    inputBuffer = aliased;
+                    // read any remaining characters in the stdin
+                    // write the entire input buffer to the stdin using ungetc
+                    BUFFER_INDEX = strlen(inputBuffer);
+                    for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
+                        ungetc(inputBuffer[i], stdin);
+                    }
+                    inputBuffer = NULL;
+                } else {
+                    for (int i = BUFFER_INDEX - 1; i >= 0; i--) {
+                        ungetc(inputBuffer[i], stdin);
+                    }
+                    freeInputBuffer();
                 }
-                freeInputBuffer();
                 break;
             }
 

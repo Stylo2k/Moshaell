@@ -2,7 +2,7 @@
 #define HISTORY_H
 
 void newHistory(bool cleanPrevious);
-void addToHistory(char* command);
+void addToHistory(Command* command);
 int getNumberOfHistoryCommands();
 bool anyHistory();
 char* getMostRecent();

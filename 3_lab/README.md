@@ -61,7 +61,12 @@ read code from file (with the -f flag)
 ./shell -f <filename>
 ```
 
-read code from string (just like in bash) with the -c flag
+or without the -f or --file flag
+```bash
+./shell <filename>
+```
+
+read code from string (just like in bash) with the -c/--code flag
 ```bash
 ./shell -c <string>
 ```
@@ -81,6 +86,9 @@ Custom rc and live updates of rc files using the source command
 source <filename>
 ```
 
+This means that when you have made any changes to the rc file, you can just run the source command and the changes will be applied to the shell.
+If you have sourced a file in the current shell session, then that file is going to be sourced.
+
 Redirection of stdout and stderr
 ```bash
 ./shell
@@ -92,13 +100,91 @@ Added the ability to have comments in the shell, which gives us the ability to h
 ```bash
 ./shell
 # this is a comment
-echo hello # this is also a comment (not yet supported)
+echo hello # this is also a comment
+```
+
+Added the ability to have multiline comments in the shell, which gives us the ability to have multiline comments inside your shell scripts
+```bash
+./shell
+'''
+this is a multiline comment
+ls
+pwd
+'''
+echo hello
+```
+
+Aliases support with the alias command inside the RC file
+```bash
+cat .sheeshrc
+alias ls="ls -l"
+ls
+total 444
+-rw-r--r-- 1 mohammad mohammad     12 Mar 17 16:19 1.in
+-rwxr-xr-x 1 mohammad mohammad  33426 Mar 17 16:19 a.out
+-rw-r--r-- 1 mohammad mohammad  20814 Mar 15 15:37 assignment.zip
+drwxr-xr-x 1 mohammad mohammad    156 Mar 17 19:11 build
+-rw-r--r-- 1 mohammad mohammad    643 Mar 13 14:20 common.h
+-rw-r--r-- 1 mohammad mohammad      3 Mar 17 16:39 idk
+-rw-r--r-- 1 mohammad mohammad  59384 Mar 17 19:11 lexer.c
+-rw-r--r-- 1 mohammad mohammad    193 Mar 13 14:20 lexer.h
+drwxr-xr-x 1 mohammad mohammad    166 Mar 17 16:19 libs
+-rw-r--r-- 1 mohammad mohammad   1047 Mar 13 14:20 Makefile
+-rw-r--r-- 1 mohammad mohammad     12 Mar 17 16:19 new
+-rw-r--r-- 1 mohammad mohammad  58608 Mar 17 19:11 parser.c
+-rw-r--r-- 1 mohammad mohammad   3335 Mar 17 19:11 parser.tab.h
+-rw-r--r-- 1 mohammad mohammad  13524 Mar 17 18:30 parser.y
+-rw-r--r-- 1 mohammad mohammad    244 Mar 14 14:29 prepareSubmission.sh
+-rw-r--r-- 1 mohammad mohammad   3180 Mar 17 19:13 README.md
+-rwxr-xr-x 1 mohammad mohammad 186696 Mar 17 19:11 shell
+-rw-r--r-- 1 mohammad mohammad   8721 Mar 17 19:11 shell.l
+-rw-r--r-- 1 mohammad mohammad     45 Mar 17 16:26 shellScript.sh
+-rw-r--r-- 1 mohammad mohammad    969 Mar 17 16:19 stderr
+drwxr-xr-x 1 mohammad mohammad      0 Mar 14 18:18 tests
+-rw-r--r-- 1 mohammad mohammad    412 Mar 13 14:20 types.h
+```
+
+Alias support with the alias command inside the shell
+```bash
+./shell
+alias lm ls -l
+lm
+total 444
+-rw-r--r-- 1 mohammad mohammad     12 Mar 17 16:19 1.in
+-rwxr-xr-x 1 mohammad mohammad  33426 Mar 17 16:19 a.out
+-rw-r--r-- 1 mohammad mohammad  20814 Mar 15 15:37 assignment.zip
+drwxr-xr-x 1 mohammad mohammad    156 Mar 17 19:11 build
+-rw-r--r-- 1 mohammad mohammad    643 Mar 13 14:20 common.h
+-rw-r--r-- 1 mohammad mohammad      3 Mar 17 16:39 idk
+-rw-r--r-- 1 mohammad mohammad  59384 Mar 17 19:11 lexer.c
+-rw-r--r-- 1 mohammad mohammad    193 Mar 13 14:20 lexer.h
+drwxr-xr-x 1 mohammad mohammad    166 Mar 17 16:19 libs
+-rw-r--r-- 1 mohammad mohammad   1047 Mar 13 14:20 Makefile
+-rw-r--r-- 1 mohammad mohammad     12 Mar 17 16:19 new
+-rw-r--r-- 1 mohammad mohammad  58608 Mar 17 19:11 parser.c
+-rw-r--r-- 1 mohammad mohammad   3335 Mar 17 19:11 parser.tab.h
+-rw-r--r-- 1 mohammad mohammad  13524 Mar 17 18:30 parser.y
+-rw-r--r-- 1 mohammad mohammad    244 Mar 14 14:29 prepareSubmission.sh
+-rw-r--r-- 1 mohammad mohammad   3180 Mar 17 19:13 README.md
+-rwxr-xr-x 1 mohammad mohammad 186696 Mar 17 19:11 shell
+-rw-r--r-- 1 mohammad mohammad   8721 Mar 17 19:11 shell.l
+-rw-r--r-- 1 mohammad mohammad     45 Mar 17 16:26 shellScript.sh
+-rw-r--r-- 1 mohammad mohammad    969 Mar 17 16:19 stderr
+drwxr-xr-x 1 mohammad mohammad      0 Mar 14 18:18 tests
+-rw-r--r-- 1 mohammad mohammad    412 Mar 13 14:20 types.h
+```
+
+Added the ability to have a history of the commands that you have used in the shell inside the .sheesh_history file
+```bash
+./shell
+echo hello
+hello
+cat .sheesh_history
+echo hello
 ```
 
 
 - Ideas :
-  - make a .sheesh_history where we can see the history of the commands that we have used. 
-  - support aliases
   - support own syntax of a minimal programming language
   - show similar commands (if the command is not found)
   - CTRL + R to search for a command

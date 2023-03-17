@@ -28,7 +28,11 @@ void newHistory(bool cleanPrevious) {
  * @param command the command to add
  * 
  */
-void addToHistory(char* command) {
+void addToHistory(Command* command_) {
+    char* command = command_->name;
+    int numArgs = command_->argc;
+
+
     if (!history) {
         newHistory(DONT_CLEAN_PREV);
     }
@@ -37,15 +41,30 @@ void addToHistory(char* command) {
     history->commands[history->numCommands] = calloc(strlen(command) + 1, sizeof(char));
     strcpy(history->commands[history->numCommands], command);
     
-    int numArgs = getNumberOfOptions();
 
     history->args[history->numCommands] = calloc(numArgs, sizeof(char**));
     for (int i = 1; i < numArgs; i++) {
-        char* arg = getArgAt(i);
+        char* arg = command_->args[i];
         history->numArgs[history->numCommands] = numArgs;
         history->args[history->numCommands][i] = calloc(strlen(arg) + 1, sizeof(char));
         strcpy(history->args[history->numCommands][i], arg);
     }
+
+    // open a file called .sheesh_history
+    // if it doesn't exist, create it
+    // if it does exist, append the command to it
+    FILE* historyFile = fopen(".sheesh_history", "a");
+    if (!historyFile) {
+        DEBUG("Couldn't open history file\n");
+        return;
+    }
+    // write the command to the file
+    fprintf(historyFile, "%s", command);
+    for (int i = 1; i < numArgs; i++) {
+        fprintf(historyFile, " %s", history->args[history->numCommands][i]);
+    }
+    fprintf(historyFile, "\n");
+    fclose(historyFile);
 
     history->numCommands++;
     historyIndex = history->numCommands;

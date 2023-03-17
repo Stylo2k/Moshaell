@@ -17,14 +17,38 @@ void historyFunc(char* name);
 void exitFunc(char* name);
 void changeDirectory(char* name);
 void sourceFunc(char* name);
+void aliasFunc(char* name);
 
 BuiltIn builtin[] = {
     {"status", statusFunc},
     {"history", historyFunc},
     {"source", sourceFunc},
+    {"alias", aliasFunc},
     {"exit", exitFunc},
     {"cd", changeDirectory}
 };
+
+void aliasFunc(char* name) {
+    if (noOptions()) {
+        printf("No alias specified!\n");
+        return;
+    }
+    char* alias = getArgAt(1);
+    if (noOptions()) {
+        printf("No command specified!\n");
+        return;
+    }
+    int i = 2;
+    char* command = calloc(strlen(getArgAt(i)), sizeof(char));
+    while (getArgAt(i)) {
+        command = strcat(command, getArgAt(i));
+        if (getArgAt(i+1)) {
+            command = strcat(command, " ");
+        }
+        i++;
+    }
+    addAlias(alias, command);
+}
 
 void sourceFunc(char* name) {
     char* sourceFilePath = getRcFilePath();
@@ -95,7 +119,7 @@ void executeBuiltIn(Command* command) {
     }
 
     if (experimental) {
-        addToHistory(name);
+        addToHistory(command);
     }
 
     for (int i = 0; i < sizeof(builtin) / sizeof(BuiltIn); i++) {
@@ -282,6 +306,16 @@ int execCommands(Command* commands) {
                     close(pfds[1]);
                 }
 
+                //stderr 
+                if (commandErr != STDERR_FILENO) {
+                    dup2(commandErr, STDERR_FILENO);
+                    close(commandErr);
+                } else {
+                    // Redirect stderr to current pipe
+                    dup2(pfds[1], STDERR_FILENO);
+                    close(pfds[1]);
+                }
+
             } else {
                 // last command
                 if (commandIn != STDIN_FILENO) {
@@ -297,6 +331,12 @@ int execCommands(Command* commands) {
                     dup2(commandOut, STDOUT_FILENO);
                     close(commandOut);
                 }
+
+                if (commandErr != STDERR_FILENO) {
+                    dup2(commandErr, STDERR_FILENO);
+                    close(commandErr);
+                }
+
             }
             execv(command->path, command->args);
             exit(1);
@@ -304,6 +344,7 @@ int execCommands(Command* commands) {
             //  close the file descriptors
             if (commandIn != STDIN_FILENO) close(commandIn);
             if (commandOut != STDOUT_FILENO) close(commandOut);
+            if (commandErr != STDERR_FILENO) close(commandErr);
 
             // save the pid
             pids[i] = pid;
@@ -350,7 +391,7 @@ int execCommand(Command* command) {
 
     
     if (experimental) {
-        addToHistory(commandName);
+        addToHistory(command);
     }
  
     char* commandPath = command->path;

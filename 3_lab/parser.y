@@ -157,21 +157,6 @@ Redirections :  LT FILENAME GT FILENAME {
                                           }
                                           if($2) free($2);
                                         }
-              | NR_LT FILENAME      {
-                                          int fd = open($2, O_RDONLY);
-                                          if (fd == -1) {
-                                            printf("Error: cannot open file %s for reading\n", $2);
-                                          } else {
-                                            if ($1 == 0) {
-                                              configureInput(getLastCommand(), fd);
-                                            } else if ($1 == 2) {
-                                              configureError(getLastCommand(), fd);
-                                            } else {
-                                              printf("Error: invalid file descriptor %d\n", $1);
-                                            }
-                                          }
-                                          if($2) free($2);
-                                        }
               |
               ;
 
@@ -392,7 +377,8 @@ int main(int argc, char *argv[]) {
         printf("  -h, --help\t\tPrint this help message\n");
         return EXIT_SUCCESS;
       default:
-        return EXIT_FAILURE;
+        // make it the f 
+        f = fopen(optarg, "r");
       }
     }
 

@@ -2,23 +2,7 @@
 #define PIPELINE_H
 
 
-typedef struct Command {
-    char *name;
-    char *path;
-    char **args;
-    int argc;
-    int in;
-    int out;
-    int err;
-    bool isBuiltIn;
-    struct Command *next;
-} Command;
-
-typedef struct Pipeline {
-    Command* commands;
-    int command_count;
-} Pipeline;
-
+#include "../../types.h"
 
 Command *newCommand(char* name, char** args, int argCount);
 void addCommandToPipeline(Command *cmd);

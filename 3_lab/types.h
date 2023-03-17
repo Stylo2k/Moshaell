@@ -26,4 +26,22 @@ typedef struct History {
     int numCommands;
 } History;
 
+typedef struct Command {
+    char *name;
+    char *path;
+    char **args;
+    int argc;
+    int in;
+    int out;
+    int err;
+    bool isBuiltIn;
+    struct Command *next;
+} Command;
+
+typedef struct Pipeline {
+    Command* commands;
+    int command_count;
+} Pipeline;
+
+
 #endif

@@ -12,7 +12,7 @@ void setYYlval(void *obj, YylvalType type);
 
 %}
 
-%x string error comment
+%x string error comment multi_line_comment
 
 %option always-interactive
 
@@ -22,8 +22,27 @@ void setYYlval(void *obj, YylvalType type);
                       DEBUG("Performing comment\n");
                     }
 <comment>\n         {
-                    BEGIN(INITIAL); /* Return to normal parsing */
+                      if (state == OPTION_STATE) {
+                        state = COMMAND_STATE;
+                        return NEWLINE;
+                      } else {
+                        BEGIN(INITIAL); /* Return to normal parsing */
+                      }
                     }
+
+"'''"[^\n]*         {
+                      BEGIN(multi_line_comment);
+                      DEBUG("Performing multi line comment\n");
+                    }
+<multi_line_comment>"'''"\n    {
+                                if (state == OPTION_STATE) {
+                                  state = COMMAND_STATE;
+                                  return NEWLINE;
+                                } else {
+                                  BEGIN(INITIAL); /* Return to normal parsing */
+                                }
+                               }
+
 <string>"\""        {
                       BEGIN(INITIAL);
                     }
@@ -36,6 +55,17 @@ void setYYlval(void *obj, YylvalType type);
                     }
 <error>\n           BEGIN(INITIAL); /* Return to normal parsing */
 <error>.
+"alias"             {
+                        if (state == OPTION_STATE) {
+                            DEBUG("OPTION: %s\n", yytext);
+                            setYYlval(yytext, YYVAL_STRING);
+                            return OPTION;
+                        }
+                        DEBUG("Performing history\n");
+                        setYYlval(yytext, YYVAL_STRING);
+                        state = OPTION_STATE;
+                        return BUILTIN;
+                    }
 "history"           {
                         if (state == OPTION_STATE) {
                             DEBUG("OPTION: %s\n", yytext);
@@ -71,10 +101,10 @@ void setYYlval(void *obj, YylvalType type);
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 
-"*"[A-Za-z0-9_"."]*      {
-                        setYYlval(yytext, YYVAL_STRING);
-                        return GLOB;
-                    }
+[A-Za-z0-9_"."]*"*"[A-Za-z0-9_"."]*      {
+                                          setYYlval(yytext, YYVAL_STRING);
+                                          return GLOB;
+                                         }
 [1-2]">"            {
                         state = FILENAME_STATE;
                         int nubmer = atoi(yytext);
@@ -131,7 +161,6 @@ void setYYlval(void *obj, YylvalType type);
 
                     }
 "cd"                {
-                     // TODO: this has to change, we are better off by just calling the builtin from here   
                       setYYlval(yytext, YYVAL_STRING);
                       state = OPTION_STATE;
                       return BUILTIN;
