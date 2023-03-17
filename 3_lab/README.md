@@ -58,7 +58,7 @@ idfk whocares*
 
 read code from file (with the -f flag)
 ```bash
-./shell -f <filename>
+./shell -f shellScript.sh
 ```
 
 or without the -f or --file flag
@@ -68,14 +68,12 @@ or without the -f or --file flag
 
 read code from string (just like in bash) with the -c/--code flag
 ```bash
-./shell -c <string>
+./shell -c "status; echo a; echo b; exit 33"
 ```
 
 Custom exit codes
 ```bash
 ./shell
-echo a
-echo b
 exit 69
 ```
 Will exit with code 69

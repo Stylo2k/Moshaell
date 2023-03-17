@@ -336,12 +336,18 @@ void yyerror (char *msg) {
   yyparse();
 }
 
+void printHelpMenu(char **argv) {
+  printf("Welcome to the most sophisticated shell the couse Operating Systems has ever seen 😎!\n\n");
+  printf("Usage: %s [-s] [-v] [-e] [-f file] [-c command] [-h]\n", argv[0]);
+  printf("  -s, --silent\t\tSilent mode\n");
+  printf("  -v, --verbose\t\tVerbose mode\n");
+  printf("  -e, --experimental\tExperimental mode\n");
+  printf("  -f, --file\t\tRead from file\n");
+  printf("  -c, --code\t\tRead from code between quotes\n");
+  printf("  -h, --help\t\tPrint this help message\n");
+}
 
-int main(int argc, char *argv[]) {
-  if (argc > 3) {
-    return EXIT_FAILURE;
-  }
-  
+int main(int argc, char *argv[]) {  
   silent = true;
   experimental = false;
 
@@ -367,18 +373,18 @@ int main(int argc, char *argv[]) {
         f = fmemopen(optarg, strlen(optarg), "r");
         break;
       case 'h':
-        printf("Welcome to the most sophisticated shell the couse Operating Systems has ever seen 😎!\n\n");
-        printf("Usage: %s [-s] [-v] [-e] [-f file] [-c command] [-h]\n", argv[0]);
-        printf("  -s, --silent\t\tSilent mode\n");
-        printf("  -v, --verbose\t\tVerbose mode\n");
-        printf("  -e, --experimental\tExperimental mode\n");
-        printf("  -f, --file\t\tRead from file\n");
-        printf("  -c, --code\t\tRead from code between quotes\n");
-        printf("  -h, --help\t\tPrint this help message\n");
+        printHelpMenu(argv);
         return EXIT_SUCCESS;
       default:
-        // make it the f 
-        f = fopen(optarg, "r");
+        printHelpMenu(argv);
+        return EXIT_FAILURE;
+      }
+    }
+
+    for (int i = optind; i < argc; i++) {
+      if (argv[i][0] != '-' && argv[i][1] != '-') {
+          // f to be set to file
+          f = fopen(argv[i], "r");
       }
     }
 
