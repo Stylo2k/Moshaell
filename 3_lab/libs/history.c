@@ -40,7 +40,7 @@ void addToHistory(char* command) {
     int numArgs = getNumberOfOptions();
 
     history->args[history->numCommands] = calloc(numArgs, sizeof(char**));
-    for (int i = 0; i < numArgs; i++) {
+    for (int i = 1; i < numArgs; i++) {
         char* arg = getArgAt(i);
         history->numArgs[history->numCommands] = numArgs;
         history->args[history->numCommands][i] = calloc(strlen(arg) + 1, sizeof(char));

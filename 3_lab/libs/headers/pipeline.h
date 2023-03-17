@@ -33,5 +33,6 @@ void configureOutput(Command *cmd, int fd);
 int getCommandCount();
 Command* getFirstCommand();
 Command* getLastCommand();
+void configureError(Command *cmd, int fd);
 
 #endif

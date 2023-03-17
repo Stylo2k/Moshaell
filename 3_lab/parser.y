@@ -1,6 +1,7 @@
 %{
   #include "common.h"
   #include <glob.h>
+  #include <getopt.h>
 
   void resetFlags();
   
@@ -19,6 +20,19 @@
   int execPipeline();
 
   int currentRedirIndex = 0;
+
+
+  const struct option longOpts[] = {
+    {"silent", no_argument, NULL, 's'},
+    {"verbose", no_argument, NULL, 'v'},
+    {"experimental", no_argument, NULL, 'e'},
+    {"code", required_argument, NULL, 'c'},
+    {"file", required_argument, NULL, 'f'},
+    {"help", no_argument, NULL, 'h'},
+    {NULL, 0, NULL, 0}
+  };
+
+  const char * shortOpts = "svehf:c:";
 %}
 
 
@@ -28,10 +42,10 @@
   char* str;
 }
 
-%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE GLOB
+%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE GLOB NR_GT NR_LT
 
 %type <str> EXECUTABLE OPTION BUILTIN FILENAME Command GLOB
-%type <ival> InputLine Chain Pipeline
+%type <ival> InputLine Chain Pipeline NR_GT NR_LT
 
 %start program
 
@@ -42,9 +56,9 @@ program : {printShellPrompt();} InputLine;
 InputLine :   Chain     AMP        InputLine 
             | Chain OR_OP {isOR = 1;} InputLine  {isOR = -1;setAlwaysTrue(false);}
             | Chain AND_OP {isOR = 0;} InputLine {isOR = -1;setAlwaysTrue(false);}
-            | Chain End InputLine {isOR = -1; setAlwaysTrue(false); $$ = $1;}
-            | Chain {isOR = -1; setAlwaysTrue(false); $$ = $1;}
-            | {isOR = -1; setAlwaysTrue(false); $$ = 0;}
+            | Chain End InputLine                {isOR = -1; setAlwaysTrue(false); $$ = $1;}
+            | Chain                              {isOR = -1; setAlwaysTrue(false); $$ = $1;}
+            |                                    {isOR = -1; setAlwaysTrue(false); $$ = 0;}
             ;
 
 End :       SEMICOLON
@@ -128,6 +142,36 @@ Redirections :  LT FILENAME GT FILENAME {
                                           }
                                           if($2) free($2);
                                         }
+              | NR_GT FILENAME      {
+                                          int fd = open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                          if (fd == -1) {
+                                            printf("Error: cannot open file %s for writing\n", $2);
+                                          } else {
+                                            if ($1 == 1) {
+                                              configureOutput(getLastCommand(), fd);
+                                            } else if ($1 == 2) {
+                                              configureError(getLastCommand(), fd);
+                                            } else {
+                                              printf("Error: invalid file descriptor %d\n", $1);
+                                            }
+                                          }
+                                          if($2) free($2);
+                                        }
+              | NR_LT FILENAME      {
+                                          int fd = open($2, O_RDONLY);
+                                          if (fd == -1) {
+                                            printf("Error: cannot open file %s for reading\n", $2);
+                                          } else {
+                                            if ($1 == 0) {
+                                              configureInput(getLastCommand(), fd);
+                                            } else if ($1 == 2) {
+                                              configureError(getLastCommand(), fd);
+                                            } else {
+                                              printf("Error: invalid file descriptor %d\n", $1);
+                                            }
+                                          }
+                                          if($2) free($2);
+                                        }
               |
               ;
 
@@ -164,27 +208,24 @@ Options: OPTION {
         Options
         |
         GLOB { 
-                        char **found;
-                        glob_t gstruct;
-                        int r;
-                        r = glob($1, GLOB_NOCHECK, NULL, &gstruct);
-                        
-                        if( r!=0 )
-                        {
-                            if( r==GLOB_NOMATCH )
-                                fprintf(stderr,"No matches\n");
-                            else
-                                fprintf(stderr,"Some kinda glob error\n");
-                            exit(1);
-                        }
-                        
-                        found = gstruct.gl_pathv;
-                        while(*found)
-                        {
-                            addOption(strdup(*found));
-                            found++;
-                        }
-                        globfree(&gstruct);
+                  char **found;
+                  glob_t gstruct;
+                  int err;
+                  err = glob($1, GLOB_NOCHECK, NULL, &gstruct);
+                  
+                  if(err) {
+                      if( err != GLOB_NOMATCH ) {
+                        fprintf(stderr,"Some kinda glob error\n");
+                        exit(1);
+                      }
+                  }
+                  
+                  found = gstruct.gl_pathv;
+                  while(*found) {
+                    addOption(strdup(*found));
+                    found++;
+                  }
+                  globfree(&gstruct);
               }
         Options
         |
@@ -299,9 +340,7 @@ void printToken(int token) {
 
 void yyerror (char *msg) {
   if (!silent) {
-    // showErrorLine();
     printToken(yychar);
-    // printf(").\n");
   }
   printf("Error: invalid syntax!\n");
   cleanUp();
@@ -322,34 +361,45 @@ int main(int argc, char *argv[]) {
   experimental = false;
 
   FILE *f = stdin;
-  if (argc == 2) {
-    if (strcmp(argv[1], "-s") == 0) {
-      silent = true;
-    } else if (strcmp(argv[1], "-v") == 0) {
-      printf("Running in verbose mode\n");
-      silent = false;
-    } else if (strcmp(argv[1], "-e") == 0) {
-      printf("Running in experimental mode\n");
-      experimental = true;
+  int opt;
+  while ((opt = getopt_long(argc, argv, shortOpts, longOpts, NULL)) != -1) {
+      switch (opt) {
+      case 's':
+        silent = true;
+        break;
+      case 'v':
+        silent = false;
+        break;
+      case 'e':
+        experimental = true;
+        break;
+      case 'f':
+        // f to be set to file
+        f = fopen(optarg, "r");
+        break;
+      case 'c':
+        // get the code between quotes and set f to it
+        f = fmemopen(optarg, strlen(optarg), "r");
+        break;
+      case 'h':
+        printf("Welcome to the most sophisticated shell the couse Operating Systems has ever seen 😎!\n\n");
+        printf("Usage: %s [-s] [-v] [-e] [-f file] [-c command] [-h]\n", argv[0]);
+        printf("  -s, --silent\t\tSilent mode\n");
+        printf("  -v, --verbose\t\tVerbose mode\n");
+        printf("  -e, --experimental\tExperimental mode\n");
+        printf("  -f, --file\t\tRead from file\n");
+        printf("  -c, --code\t\tRead from code between quotes\n");
+        printf("  -h, --help\t\tPrint this help message\n");
+        return EXIT_SUCCESS;
+      default:
+        return EXIT_FAILURE;
+      }
     }
-  }
 
-  if(argc == 3) {
-    if (strcmp(argv[1], "-s") == 0 && strcmp(argv[2], "-e") == 0) {
-      printf("Running in silent and experimental mode\n");
-      silent = true;
-      experimental = true;
-    } else if (strcmp(argv[1], "-v") == 0 && strcmp(argv[2], "-e") == 0) {
-      printf("Running in verbose and experimental mode\n");
-      silent = false;
-      experimental = true;
-    } else {
-      return EXIT_FAILURE;
-    }
-  }
 
   setbuf(stdin, NULL);
   setbuf(stdout, NULL);
+
   if (experimental) {
     readConfigFile();
   }

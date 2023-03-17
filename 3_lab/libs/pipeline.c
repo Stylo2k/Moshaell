@@ -182,6 +182,22 @@ void configureOutput(Command *cmd, int fd) {
 }
 
 /**
+ * @brief configures the stderr of a command to a given file descriptor
+ * 
+ * @param cmd the command to configure the stderr of
+ * @param fd the file descriptor to set the stderr to
+ */
+void configureError(Command *cmd, int fd) {
+    if(!cmd) {
+        return;
+    }
+    if (cmd->err != STDERR_FILENO) {
+        close(cmd->err);
+    }
+    cmd->err = fd;
+}
+
+/**
  * @brief configures the error of a command to a given file descriptor
  * 
  * @param name the name of the command

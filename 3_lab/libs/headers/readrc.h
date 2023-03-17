@@ -10,5 +10,7 @@ void getPathColor();
 void getPromptStartColor();
 void resetColor();
 char* getNameStart();
+char* getRcFilePath();
+void readSpecificRcFile(char* path);
 
 #endif

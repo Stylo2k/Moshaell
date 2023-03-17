@@ -16,14 +16,36 @@ void statusFunc(char* name);
 void historyFunc(char* name);
 void exitFunc(char* name);
 void changeDirectory(char* name);
-
+void sourceFunc(char* name);
 
 BuiltIn builtin[] = {
     {"status", statusFunc},
     {"history", historyFunc},
+    {"source", sourceFunc},
     {"exit", exitFunc},
     {"cd", changeDirectory}
 };
+
+void sourceFunc(char* name) {
+    char* sourceFilePath = getRcFilePath();
+    if (!experimental) {
+        fprintf(stderr, "Error: source is only available in experimental mode!\n");
+        return;
+    }
+    if (noOptions() && sourceFilePath) {
+        printf("No source file specified!\nTaking %s as source file\n", sourceFilePath);
+    }
+    if (noOptions() && !sourceFilePath) {
+        printf("No source file specified and nothing found in local or home dir!\n");
+        return;
+    }
+    addBinPathToOptions(name);
+    if (getArgAt(1)) {
+        sourceFilePath = getArgAt(1);
+        printf("Taking %s as source file\n", sourceFilePath);
+    }
+    readSpecificRcFile(sourceFilePath);
+}
 
 void statusFunc(char* _) {
     printf("The most recent exit code is: %d\n", exitCode);
@@ -35,10 +57,14 @@ void historyFunc(char* _) {
 }
 
 void exitFunc(char* name) {
+    int finalExitCode = 0;
+    if (getArgAt(1)) {
+        finalExitCode = atoi(getArgAt(1));
+    }
     cleanUp();
     finalizeLexer();
     free(name);
-    exit(0);
+    exit(finalExitCode);
 }
 
 void changeDirectory(char* name) {
@@ -230,6 +256,7 @@ int execCommands(Command* commands) {
 
         int commandIn = command->in;
         int commandOut = command->out;
+        int commandErr = command->err;
 
         pid_t pid = fork();
         
@@ -359,6 +386,12 @@ int execCommand(Command* command) {
         if (commandOut != STDOUT_FILENO) {
             dup2(commandOut, STDOUT_FILENO);
             close(commandOut);
+        }
+
+        // stderr
+        if (command->err != STDERR_FILENO) {
+            dup2(command->err, STDERR_FILENO);
+            close(command->err);
         }
 
         // this will be performed by the child process

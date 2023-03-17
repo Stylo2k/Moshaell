@@ -12,11 +12,18 @@ void setYYlval(void *obj, YylvalType type);
 
 %}
 
-%x string error
+%x string error comment
 
 %option always-interactive
 
 %%
+"#"[^\n]*           {
+                      BEGIN(comment);
+                      DEBUG("Performing comment\n");
+                    }
+<comment>\n         {
+                    BEGIN(INITIAL); /* Return to normal parsing */
+                    }
 <string>"\""        {
                       BEGIN(INITIAL);
                     }
@@ -50,13 +57,35 @@ void setYYlval(void *obj, YylvalType type);
                         state = OPTION_STATE;
                         return BUILTIN;
                     }
-
+"source"            {
+                        if (state == OPTION_STATE) {
+                            DEBUG("OPTION: %s\n", yytext);
+                            setYYlval(yytext, YYVAL_STRING);
+                            return OPTION;
+                        }
+                        DEBUG("Performing exit\n");
+                        setYYlval(yytext, YYVAL_STRING);
+                        state = OPTION_STATE;
+                        return BUILTIN;
+                    }
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 
 "*"[A-Za-z0-9_"."]*      {
                         setYYlval(yytext, YYVAL_STRING);
                         return GLOB;
+                    }
+[1-2]">"            {
+                        state = FILENAME_STATE;
+                        int nubmer = atoi(yytext);
+                        setYYlval(&nubmer, YYVAL_INT);
+                        return NR_GT;
+                    }
+[1-2]"<"            {
+                        state = FILENAME_STATE;
+                        int nubmer = atoi(yytext);
+                        setYYlval(&nubmer, YYVAL_INT);
+                        return NR_LT;
                     }
 ">"                 {
                         state = FILENAME_STATE;
@@ -208,7 +237,6 @@ void showErrorLine() {
 void finalizeLexer() {
   free(inputbuffer);
   yylex_destroy();
-  // yyterminate();
 }
 
 bool readingCommand() {

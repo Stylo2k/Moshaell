@@ -1,0 +1,29 @@
+# This is the configuration file for sheesh (our shell)
+
+# comments are preceded by a hash (#)
+
+# RED 0
+# GREEN 1
+# YELLOW 2
+# BLUE 3
+# MAGENTA 4
+# CYAN 5
+# WHITE 6
+
+# supported properties are
+# name_start - the start of the user name
+# prompt_start - the start of the prompt
+# name_color - the color of the user name and the name_start
+# host_name_color - the color of the host name
+# path_color - the color of the path
+# prompt_start_color - the color of the prompt start
+
+
+name_color =  "1"
+name_start = "╭─"
+
+host_name_color =  "2"
+path_color =  "4"
+
+prompt_start = "╰─😎 "
+prompt_start_color =  "4"

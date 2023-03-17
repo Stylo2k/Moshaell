@@ -2,6 +2,7 @@
 
 
 static FILE* rcFile = NULL;
+static char* rcFilePath = NULL;
 
 // supported colors
 typedef enum COLORS {
@@ -31,14 +32,19 @@ static COLOR PROMPT_START_COLOR = RED;
  */
 void openConfigFile() {
     //first look locally for the .sheeshrc file
-    rcFile = fopen(".sheeshrc", "r");
+    if (!rcFilePath) {
+        rcFilePath = strdup(".sheeshrc");
+    }
+    rcFile = fopen(rcFilePath, "r");
     if (!rcFile) {
         //if it doesn't exist, look in the home directory
         char* home = getenv("HOME");
         char* path = calloc(strlen(home) + 10, sizeof(char));
         strcpy(path, home);
-        strcat(path, "/.sheeshrc");
+        strcat(path, "/");
+        strcat(path, rcFilePath);
         rcFile = fopen(path, "r");
+        rcFilePath = strdup(path);
         free(path);
     }
     if (!rcFile) {
@@ -236,6 +242,15 @@ void readConfigFile() {
         NAME_START = value;
     }
     closeConfigFile();
+}
+
+void readSpecificRcFile(char* path) {
+    rcFilePath = strdup(path);
+    readConfigFile();
+}
+
+char* getRcFilePath() {
+    return rcFilePath;
 }
 
 void resetColor() {
