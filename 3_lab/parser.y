@@ -42,7 +42,7 @@
   char* str;
 }
 
-%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE GLOB NR_GT NR_LT
+%token EXECUTABLE OPTION FILENAME AMP AND_OP OR_OP SEMICOLON BUILTIN GT LT PIPE_OP NEWLINE GLOB NR_GT NR_LT GT_GT
 
 %type <str> EXECUTABLE OPTION BUILTIN FILENAME Command GLOB
 %type <ival> InputLine Chain Pipeline NR_GT NR_LT
@@ -133,6 +133,15 @@ Redirections :  LT FILENAME GT FILENAME {
                                           }
                                           if($2) free($2);
                                         }
+              | GT_GT FILENAME          {
+                                          int fd = open($2, O_APPEND|O_CREAT|O_WRONLY, 0666);
+                                          if (fd == -1) {
+                                            printf("Error: cannot open file %s for writing\n", $2);
+                                          } else {
+                                            configureOutput(getLastCommand(), fd);
+                                          }
+                                          if($2) free($2);
+                                        }
               | LT FILENAME             {
                                           int fd = open($2, O_RDONLY);
                                           if (fd == -1) {
@@ -157,6 +166,31 @@ Redirections :  LT FILENAME GT FILENAME {
                                           }
                                           if($2) free($2);
                                         }
+              | NR_GT FILENAME NR_GT FILENAME 
+                                              {
+                                                int fd = open($2, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                                int fd1 = open($4, O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                                if (fd == -1 || fd1 == -1) {
+                                                  printf("Error: cannot open file for writing\n");
+                                                } else {
+                                                  if ($1 == 1) {
+                                                    configureOutput(getLastCommand(), fd);
+                                                  } else if ($1 == 2) {
+                                                    configureError(getLastCommand(), fd);
+                                                  } else {
+                                                    printf("Error: invalid file descriptor %d\n", $1);
+                                                  }
+                                                  if ($3 == 1) {
+                                                    configureOutput(getLastCommand(), fd1);
+                                                  } else if ($3 == 2) {
+                                                    configureError(getLastCommand(), fd1);
+                                                  } else {
+                                                    printf("Error: invalid file descriptor %d\n", $3);
+                                                  }
+                                                }
+                                                if($2) free($2);
+                                                if($4) free($4);
+                                              }
               |
               ;
 
@@ -176,7 +210,6 @@ Pipeline :  Command PIPE_OP
                                           addCommandToPipelineWithArgs($1, getOptions(), getNumberOfOptions());
                                           cleanUp();
                                           currentRedirIndex++;
-                                          $$ = $1;
                                         }
           ;
 
@@ -239,9 +272,6 @@ int execPipeline() {
 
 int execChain() {
   int exitCode = getExitCode();
-  bool alwaysTrue = isAlwaysTrue();
-
-  DEBUG("isOR: %d isBuiltIn: %d alwaysTrue: %d exitCode: %d: %s\n", isOR, isBuiltIn, alwaysTrue, exitCode);
 
   if (isOR == -1) { // first time
     exitCode = execPipeline();

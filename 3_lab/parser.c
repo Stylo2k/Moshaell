@@ -150,23 +150,24 @@ enum yysymbol_kind_t
   YYSYMBOL_GLOB = 15,                      /* GLOB  */
   YYSYMBOL_NR_GT = 16,                     /* NR_GT  */
   YYSYMBOL_NR_LT = 17,                     /* NR_LT  */
-  YYSYMBOL_YYACCEPT = 18,                  /* $accept  */
-  YYSYMBOL_program = 19,                   /* program  */
-  YYSYMBOL_20_1 = 20,                      /* $@1  */
-  YYSYMBOL_InputLine = 21,                 /* InputLine  */
-  YYSYMBOL_22_2 = 22,                      /* $@2  */
-  YYSYMBOL_23_3 = 23,                      /* $@3  */
-  YYSYMBOL_End = 24,                       /* End  */
-  YYSYMBOL_Chain = 25,                     /* Chain  */
-  YYSYMBOL_26_4 = 26,                      /* $@4  */
-  YYSYMBOL_Redirections = 27,              /* Redirections  */
-  YYSYMBOL_Pipeline = 28,                  /* Pipeline  */
-  YYSYMBOL_29_5 = 29,                      /* $@5  */
-  YYSYMBOL_Command = 30,                   /* Command  */
-  YYSYMBOL_31_6 = 31,                      /* $@6  */
-  YYSYMBOL_Options = 32,                   /* Options  */
-  YYSYMBOL_33_7 = 33,                      /* $@7  */
-  YYSYMBOL_34_8 = 34                       /* $@8  */
+  YYSYMBOL_GT_GT = 18,                     /* GT_GT  */
+  YYSYMBOL_YYACCEPT = 19,                  /* $accept  */
+  YYSYMBOL_program = 20,                   /* program  */
+  YYSYMBOL_21_1 = 21,                      /* $@1  */
+  YYSYMBOL_InputLine = 22,                 /* InputLine  */
+  YYSYMBOL_23_2 = 23,                      /* $@2  */
+  YYSYMBOL_24_3 = 24,                      /* $@3  */
+  YYSYMBOL_End = 25,                       /* End  */
+  YYSYMBOL_Chain = 26,                     /* Chain  */
+  YYSYMBOL_27_4 = 27,                      /* $@4  */
+  YYSYMBOL_Redirections = 28,              /* Redirections  */
+  YYSYMBOL_Pipeline = 29,                  /* Pipeline  */
+  YYSYMBOL_30_5 = 30,                      /* $@5  */
+  YYSYMBOL_Command = 31,                   /* Command  */
+  YYSYMBOL_32_6 = 32,                      /* $@6  */
+  YYSYMBOL_Options = 33,                   /* Options  */
+  YYSYMBOL_34_7 = 34,                      /* $@7  */
+  YYSYMBOL_35_8 = 35                       /* $@8  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -494,19 +495,19 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  3
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   30
+#define YYLAST   34
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  18
+#define YYNTOKENS  19
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  17
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  33
+#define YYNRULES  35
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  47
+#define YYNSTATES  51
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   272
+#define YYMAXUTOK   273
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -547,7 +548,7 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16,    17
+      15,    16,    17,    18
 };
 
 #if YYDEBUG
@@ -556,8 +557,8 @@ static const yytype_uint8 yyrline[] =
 {
        0,    54,    54,    54,    56,    57,    57,    58,    58,    59,
       60,    61,    64,    65,    66,    69,    81,    81,    92,   109,
-     126,   136,   145,   160,   164,   163,   174,   183,   183,   190,
-     190,   195,   195,   216
+     126,   136,   145,   154,   169,   194,   198,   197,   208,   216,
+     216,   223,   223,   228,   228,   249
 };
 #endif
 
@@ -575,9 +576,10 @@ static const char *const yytname[] =
 {
   "\"end of file\"", "error", "\"invalid token\"", "EXECUTABLE", "OPTION",
   "FILENAME", "AMP", "AND_OP", "OR_OP", "SEMICOLON", "BUILTIN", "GT", "LT",
-  "PIPE_OP", "NEWLINE", "GLOB", "NR_GT", "NR_LT", "$accept", "program",
-  "$@1", "InputLine", "$@2", "$@3", "End", "Chain", "$@4", "Redirections",
-  "Pipeline", "$@5", "Command", "$@6", "Options", "$@7", "$@8", YY_NULLPTR
+  "PIPE_OP", "NEWLINE", "GLOB", "NR_GT", "NR_LT", "GT_GT", "$accept",
+  "program", "$@1", "InputLine", "$@2", "$@3", "End", "Chain", "$@4",
+  "Redirections", "Pipeline", "$@5", "Command", "$@6", "Options", "$@7",
+  "$@8", YY_NULLPTR
 };
 
 static const char *
@@ -601,11 +603,12 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -12,     4,     3,   -12,   -12,   -12,   -12,     2,    11,    -8,
+     -12,     4,     3,   -12,   -12,   -12,   -12,     2,     6,    -8,
       -3,    -3,     3,   -12,   -12,     0,   -12,     3,    -2,    10,
-      12,   -12,   -12,   -12,   -12,   -12,   -12,   -12,     3,     3,
-     -12,   -12,     8,    13,   -12,    18,    -3,    -3,   -12,   -12,
-      23,    24,   -12,   -12,   -12,   -12,   -12
+      16,    18,   -12,   -12,   -12,   -12,   -12,   -12,   -12,     3,
+       3,   -12,   -12,    13,    15,    14,   -12,    26,    -3,    -3,
+     -12,   -12,    27,    28,    29,   -12,   -12,   -12,   -12,   -12,
+     -12
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -613,25 +616,26 @@ static const yytype_int8 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       2,     0,    11,     1,    27,    16,     3,    10,    23,    26,
-      33,    33,    11,     7,     5,    12,    13,    11,     0,     0,
-       0,    15,    24,    29,    31,    28,    17,     4,    11,    11,
-      14,     9,    20,    21,    22,     0,    33,    33,     8,     6,
-       0,     0,    25,    30,    32,    19,    18
+       2,     0,    11,     1,    29,    16,     3,    10,    25,    28,
+      35,    35,    11,     7,     5,    12,    13,    11,     0,     0,
+       0,     0,    15,    26,    31,    33,    30,    17,     4,    11,
+      11,    14,     9,    20,    22,    23,    21,     0,    35,    35,
+       8,     6,     0,     0,     0,    27,    32,    34,    19,    18,
+      24
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
      -12,   -12,   -12,   -10,   -12,   -12,   -12,   -12,   -12,   -12,
-      -5,   -12,   -12,   -12,   -11,   -12,   -12
+      -6,   -12,   -12,   -12,   -11,   -12,   -12
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     1,     2,     6,    29,    28,    17,     7,    11,    21,
-       8,    35,     9,    10,    25,    36,    37
+       0,     1,     2,     6,    30,    29,    17,     7,    11,    22,
+       8,    37,     9,    10,    26,    38,    39
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -639,38 +643,39 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      26,    23,    27,    32,     3,    22,     4,    31,    12,    13,
-      14,    15,    24,     5,    30,    33,    16,    34,    38,    39,
-      40,     4,    18,    19,    41,    43,    44,    20,    45,    46,
-      42
+      27,    24,    28,    33,     3,    23,     4,    32,    12,    13,
+      14,    15,    25,     5,    31,    34,    16,    18,    19,    40,
+      41,    35,    20,    36,    21,    42,    43,    46,    47,     4,
+      44,    45,    48,    49,    50
 };
 
 static const yytype_int8 yycheck[] =
 {
       11,     4,    12,     5,     0,    13,     3,    17,     6,     7,
-       8,     9,    15,    10,    14,     5,    14,     5,    28,    29,
-      12,     3,    11,    12,    11,    36,    37,    16,     5,     5,
-      35
+       8,     9,    15,    10,    14,     5,    14,    11,    12,    29,
+      30,     5,    16,     5,    18,    12,    11,    38,    39,     3,
+      16,    37,     5,     5,     5
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,    19,    20,     0,     3,    10,    21,    25,    28,    30,
-      31,    26,     6,     7,     8,     9,    14,    24,    11,    12,
-      16,    27,    13,     4,    15,    32,    32,    21,    23,    22,
-      14,    21,     5,     5,     5,    29,    33,    34,    21,    21,
-      12,    11,    28,    32,    32,     5,     5
+       0,    20,    21,     0,     3,    10,    22,    26,    29,    31,
+      32,    27,     6,     7,     8,     9,    14,    25,    11,    12,
+      16,    18,    28,    13,     4,    15,    33,    33,    22,    24,
+      23,    14,    22,     5,     5,     5,     5,    30,    34,    35,
+      22,    22,    12,    11,    16,    29,    33,    33,     5,     5,
+       5
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    18,    20,    19,    21,    22,    21,    23,    21,    21,
-      21,    21,    24,    24,    24,    25,    26,    25,    27,    27,
-      27,    27,    27,    27,    29,    28,    28,    31,    30,    33,
-      32,    34,    32,    32
+       0,    19,    21,    20,    22,    23,    22,    24,    22,    22,
+      22,    22,    25,    25,    25,    26,    27,    26,    28,    28,
+      28,    28,    28,    28,    28,    28,    30,    29,    29,    32,
+      31,    34,    33,    35,    33,    33
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
@@ -678,8 +683,8 @@ static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     2,     3,     0,     4,     0,     4,     3,
        1,     0,     1,     1,     2,     2,     0,     3,     4,     4,
-       2,     2,     2,     0,     0,     4,     1,     0,     3,     0,
-       3,     0,     3,     0
+       2,     2,     2,     2,     4,     0,     0,     4,     1,     0,
+       3,     0,     3,     0,     3,     0
 };
 
 
@@ -1145,55 +1150,55 @@ yyreduce:
   case 2: /* $@1: %empty  */
 #line 54 "parser.y"
           {printShellPrompt();}
-#line 1149 "parser.tab.c"
+#line 1154 "parser.tab.c"
     break;
 
   case 5: /* $@2: %empty  */
 #line 57 "parser.y"
                           {isOR = 1;}
-#line 1155 "parser.tab.c"
+#line 1160 "parser.tab.c"
     break;
 
   case 6: /* InputLine: Chain OR_OP $@2 InputLine  */
 #line 57 "parser.y"
                                                  {isOR = -1;setAlwaysTrue(false);}
-#line 1161 "parser.tab.c"
+#line 1166 "parser.tab.c"
     break;
 
   case 7: /* $@3: %empty  */
 #line 58 "parser.y"
                            {isOR = 0;}
-#line 1167 "parser.tab.c"
+#line 1172 "parser.tab.c"
     break;
 
   case 8: /* InputLine: Chain AND_OP $@3 InputLine  */
 #line 58 "parser.y"
                                                  {isOR = -1;setAlwaysTrue(false);}
-#line 1173 "parser.tab.c"
+#line 1178 "parser.tab.c"
     break;
 
   case 9: /* InputLine: Chain End InputLine  */
 #line 59 "parser.y"
                                                  {isOR = -1; setAlwaysTrue(false); (yyval.ival) = (yyvsp[-2].ival);}
-#line 1179 "parser.tab.c"
+#line 1184 "parser.tab.c"
     break;
 
   case 10: /* InputLine: Chain  */
 #line 60 "parser.y"
                                                  {isOR = -1; setAlwaysTrue(false); (yyval.ival) = (yyvsp[0].ival);}
-#line 1185 "parser.tab.c"
+#line 1190 "parser.tab.c"
     break;
 
   case 11: /* InputLine: %empty  */
 #line 61 "parser.y"
                                                  {isOR = -1; setAlwaysTrue(false); (yyval.ival) = 0;}
-#line 1191 "parser.tab.c"
+#line 1196 "parser.tab.c"
     break;
 
   case 13: /* End: NEWLINE  */
 #line 65 "parser.y"
                       {printShellPrompt();}
-#line 1197 "parser.tab.c"
+#line 1202 "parser.tab.c"
     break;
 
   case 15: /* Chain: Pipeline Redirections  */
@@ -1209,7 +1214,7 @@ yyreduce:
                                                             resetFlags();
                                                             (yyval.ival) = exitCode;
                                                           }
-#line 1213 "parser.tab.c"
+#line 1218 "parser.tab.c"
     break;
 
   case 16: /* $@4: %empty  */
@@ -1217,7 +1222,7 @@ yyreduce:
                                                           {
                                                             
                                                           }
-#line 1221 "parser.tab.c"
+#line 1226 "parser.tab.c"
     break;
 
   case 17: /* Chain: BUILTIN $@4 Options  */
@@ -1228,7 +1233,7 @@ yyreduce:
                                                             (yyval.ival) = execChain();
                                                             resetFlags();
                                                           }
-#line 1232 "parser.tab.c"
+#line 1237 "parser.tab.c"
     break;
 
   case 18: /* Redirections: LT FILENAME GT FILENAME  */
@@ -1250,7 +1255,7 @@ yyreduce:
                                           if((yyvsp[-2].str)) free((yyvsp[-2].str));
                                           if((yyvsp[0].str)) free((yyvsp[0].str));
                                         }
-#line 1254 "parser.tab.c"
+#line 1259 "parser.tab.c"
     break;
 
   case 19: /* Redirections: GT FILENAME LT FILENAME  */
@@ -1272,7 +1277,7 @@ yyreduce:
                                           if((yyvsp[-2].str)) free((yyvsp[-2].str));
                                           if((yyvsp[0].str)) free((yyvsp[0].str));
                                         }
-#line 1276 "parser.tab.c"
+#line 1281 "parser.tab.c"
     break;
 
   case 20: /* Redirections: GT FILENAME  */
@@ -1287,11 +1292,25 @@ yyreduce:
                                           }
                                           if((yyvsp[0].str)) free((yyvsp[0].str));
                                         }
-#line 1291 "parser.tab.c"
+#line 1296 "parser.tab.c"
     break;
 
-  case 21: /* Redirections: LT FILENAME  */
+  case 21: /* Redirections: GT_GT FILENAME  */
 #line 136 "parser.y"
+                                        {
+                                          int fd = open((yyvsp[0].str), O_APPEND|O_CREAT|O_WRONLY, 0666);
+                                          if (fd == -1) {
+                                            printf("Error: cannot open file %s for writing\n", (yyvsp[0].str));
+                                          } else {
+                                            configureOutput(getLastCommand(), fd);
+                                          }
+                                          if((yyvsp[0].str)) free((yyvsp[0].str));
+                                        }
+#line 1310 "parser.tab.c"
+    break;
+
+  case 22: /* Redirections: LT FILENAME  */
+#line 145 "parser.y"
                                         {
                                           int fd = open((yyvsp[0].str), O_RDONLY);
                                           if (fd == -1) {
@@ -1301,11 +1320,11 @@ yyreduce:
                                           }
                                           if((yyvsp[0].str)) free((yyvsp[0].str));
                                         }
-#line 1305 "parser.tab.c"
+#line 1324 "parser.tab.c"
     break;
 
-  case 22: /* Redirections: NR_GT FILENAME  */
-#line 145 "parser.y"
+  case 23: /* Redirections: NR_GT FILENAME  */
+#line 154 "parser.y"
                                     {
                                           int fd = open((yyvsp[0].str), O_TRUNC|O_CREAT|O_WRONLY, 0666);
                                           if (fd == -1) {
@@ -1321,64 +1340,92 @@ yyreduce:
                                           }
                                           if((yyvsp[0].str)) free((yyvsp[0].str));
                                         }
-#line 1325 "parser.tab.c"
+#line 1344 "parser.tab.c"
     break;
 
-  case 24: /* $@5: %empty  */
-#line 164 "parser.y"
+  case 24: /* Redirections: NR_GT FILENAME NR_GT FILENAME  */
+#line 170 "parser.y"
+                                              {
+                                                int fd = open((yyvsp[-2].str), O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                                int fd1 = open((yyvsp[0].str), O_TRUNC|O_CREAT|O_WRONLY, 0666);
+                                                if (fd == -1 || fd1 == -1) {
+                                                  printf("Error: cannot open file for writing\n");
+                                                } else {
+                                                  if ((yyvsp[-3].ival) == 1) {
+                                                    configureOutput(getLastCommand(), fd);
+                                                  } else if ((yyvsp[-3].ival) == 2) {
+                                                    configureError(getLastCommand(), fd);
+                                                  } else {
+                                                    printf("Error: invalid file descriptor %d\n", (yyvsp[-3].ival));
+                                                  }
+                                                  if ((yyvsp[-1].ival) == 1) {
+                                                    configureOutput(getLastCommand(), fd1);
+                                                  } else if ((yyvsp[-1].ival) == 2) {
+                                                    configureError(getLastCommand(), fd1);
+                                                  } else {
+                                                    printf("Error: invalid file descriptor %d\n", (yyvsp[-1].ival));
+                                                  }
+                                                }
+                                                if((yyvsp[-2].str)) free((yyvsp[-2].str));
+                                                if((yyvsp[0].str)) free((yyvsp[0].str));
+                                              }
+#line 1373 "parser.tab.c"
+    break;
+
+  case 26: /* $@5: %empty  */
+#line 198 "parser.y"
                                         {
                                           latestCMDPiped = true;
                                           addCommandToPipelineWithArgs((yyvsp[-1].str), getOptions(), getNumberOfOptions());
                                           cleanUp();
                                           currentRedirIndex++;
                                         }
-#line 1336 "parser.tab.c"
+#line 1384 "parser.tab.c"
     break;
 
-  case 25: /* Pipeline: Command PIPE_OP $@5 Pipeline  */
-#line 171 "parser.y"
+  case 27: /* Pipeline: Command PIPE_OP $@5 Pipeline  */
+#line 205 "parser.y"
                                         {
                                           (yyval.ival) = (yyvsp[0].ival);
                                         }
-#line 1344 "parser.tab.c"
+#line 1392 "parser.tab.c"
     break;
 
-  case 26: /* Pipeline: Command  */
-#line 175 "parser.y"
+  case 28: /* Pipeline: Command  */
+#line 209 "parser.y"
                                         {
                                           addCommandToPipelineWithArgs((yyvsp[0].str), getOptions(), getNumberOfOptions());
                                           cleanUp();
                                           currentRedirIndex++;
-                                          (yyval.ival) = (yyvsp[0].str);
                                         }
-#line 1355 "parser.tab.c"
+#line 1402 "parser.tab.c"
     break;
 
-  case 27: /* $@6: %empty  */
-#line 183 "parser.y"
+  case 29: /* $@6: %empty  */
+#line 216 "parser.y"
                     {
                     }
-#line 1362 "parser.tab.c"
+#line 1409 "parser.tab.c"
     break;
 
-  case 28: /* Command: EXECUTABLE $@6 Options  */
-#line 186 "parser.y"
+  case 30: /* Command: EXECUTABLE $@6 Options  */
+#line 219 "parser.y"
                     {
                       (yyval.str) = (yyvsp[-2].str);
                     }
-#line 1370 "parser.tab.c"
+#line 1417 "parser.tab.c"
     break;
 
-  case 29: /* $@7: %empty  */
-#line 190 "parser.y"
+  case 31: /* $@7: %empty  */
+#line 223 "parser.y"
                 { 
                     addOption((yyvsp[0].str));
                 }
-#line 1378 "parser.tab.c"
+#line 1425 "parser.tab.c"
     break;
 
-  case 31: /* $@8: %empty  */
-#line 195 "parser.y"
+  case 33: /* $@8: %empty  */
+#line 228 "parser.y"
              { 
                   char **found;
                   glob_t gstruct;
@@ -1399,11 +1446,11 @@ yyreduce:
                   }
                   globfree(&gstruct);
               }
-#line 1403 "parser.tab.c"
+#line 1450 "parser.tab.c"
     break;
 
 
-#line 1407 "parser.tab.c"
+#line 1454 "parser.tab.c"
 
       default: break;
     }
@@ -1596,7 +1643,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 219 "parser.y"
+#line 252 "parser.y"
 
 
 bool failureExitCode(int code) {
@@ -1620,9 +1667,6 @@ int execPipeline() {
 
 int execChain() {
   int exitCode = getExitCode();
-  bool alwaysTrue = isAlwaysTrue();
-
-  DEBUG("isOR: %d isBuiltIn: %d alwaysTrue: %d exitCode: %d: %s\n", isOR, isBuiltIn, alwaysTrue, exitCode);
 
   if (isOR == -1) { // first time
     exitCode = execPipeline();

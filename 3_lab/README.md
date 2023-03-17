@@ -41,13 +41,25 @@ make
 
 # New Bonuses for lab 3:
 
-For this labs bonuses you dont have to run the shell in experimental mode.
+
 
 First of all run :
 ```bash
 ./shell -h
 ```
 to see the help menu
+
+Append to a file with the >> operator
+```bash
+./shell
+echo a > file.txt
+cat file.txt
+a
+echo hello >> file.txt
+cat file.txt
+a
+hello
+```
 
 glob pattern matching
 ```bash

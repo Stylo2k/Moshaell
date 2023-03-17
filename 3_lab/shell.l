@@ -117,6 +117,10 @@ void setYYlval(void *obj, YylvalType type);
                         setYYlval(&nubmer, YYVAL_INT);
                         return NR_LT;
                     }
+">>"                {
+                        state = FILENAME_STATE;
+                        return GT_GT;
+                    }
 ">"                 {
                         state = FILENAME_STATE;
                         return GT;
@@ -189,7 +193,6 @@ void setYYlval(void *obj, YylvalType type);
                         } else if (state == FILENAME_STATE) {
                             DEBUG("FILENAME: %s\n", yytext);
                             setYYlval(yytext, YYVAL_STRING);
-                            state = COMMAND_STATE;
                             return FILENAME;
                         }
                     }

@@ -68,7 +68,8 @@ extern int yydebug;
     NEWLINE = 269,                 /* NEWLINE  */
     GLOB = 270,                    /* GLOB  */
     NR_GT = 271,                   /* NR_GT  */
-    NR_LT = 272                    /* NR_LT  */
+    NR_LT = 272,                   /* NR_LT  */
+    GT_GT = 273                    /* GT_GT  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -83,7 +84,7 @@ union YYSTYPE
   double dval;  
   char* str;
 
-#line 87 "parser.tab.h"
+#line 88 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
