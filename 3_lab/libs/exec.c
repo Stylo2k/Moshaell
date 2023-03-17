@@ -5,6 +5,16 @@ static bool alwaysTrue = false;
 
 #include "../common.h"
 
+
+typedef struct DirectoryStack {
+    char** directory;
+    int index;
+    int size;
+} DirectoryStack;
+
+
+static DirectoryStack* directoryStack = NULL;
+
 typedef void (*function_ptr)(char*);
 
 typedef struct {
@@ -18,6 +28,8 @@ void exitFunc(char* name);
 void changeDirectory(char* name);
 void sourceFunc(char* name);
 void aliasFunc(char* name);
+void popDir(char* name);
+void printDirStack(char* name);
 
 BuiltIn builtin[] = {
     {"status", statusFunc},
@@ -25,6 +37,8 @@ BuiltIn builtin[] = {
     {"source", sourceFunc},
     {"alias", aliasFunc},
     {"exit", exitFunc},
+    {"popd", popDir},
+    {"dirstack", printDirStack},
     {"cd", changeDirectory}
 };
 
@@ -86,17 +100,74 @@ void exitFunc(char* name) {
         finalExitCode = atoi(getArgAt(1));
     }
     cleanUp();
+    freeAliasList();
+    freeHistory();
+    resetPipeline();
     finalizeLexer();
+    freeAtExit();
     free(name);
     exit(finalExitCode);
 }
 
+void assertDirectoryStack() {
+    if (!directoryStack) {
+        directoryStack = calloc(1, sizeof(DirectoryStack));
+        directoryStack->directory = calloc(10, sizeof(char*));
+        directoryStack->index = 0;
+        directoryStack->size = 10;
+    }
+    if (directoryStack->size == directoryStack->index) {
+        directoryStack->directory = realloc(directoryStack->directory, (directoryStack->size * 2) * sizeof(char*));
+        directoryStack->size *= 2;
+    }
+}
+
+void pushDirectory(char* directory) {
+    assertDirectoryStack();
+    directoryStack->directory[directoryStack->index] = calloc(strlen(directory) + 1, sizeof(char));
+    strcpy(directoryStack->directory[directoryStack->index], directory);
+    directoryStack->index++;
+}
+
+void printDirStack(char* _) {
+    assertDirectoryStack();
+    for (int i = 0; i < directoryStack->index; i++) {
+        printf("%d: %s\n", i, directoryStack->directory[i]);
+    }
+}
+
+char* popDirectory() {
+    assertDirectoryStack();
+    if (directoryStack->index == 0) {
+        return NULL;
+    }
+    directoryStack->index--;
+    char* directory = directoryStack->directory[directoryStack->index];
+    directoryStack->directory[directoryStack->index] = NULL;
+    return directory;
+}
+
+
+void popDir(char* _) {
+    char* directory = popDirectory();
+    // cd to the directory
+    if (directory) {
+        printf("Popping directory: %s\n", directory);
+        exitCode = chdir(directory);
+    } else {
+        printf("Error: No directory to pop!\n");
+        exitCode = 2;
+    }
+}
+
 void changeDirectory(char* name) {
+    assertDirectoryStack();
     if (noOptions()) {
-            printf("Error: cd requires folder to navigate to!\n");
-            exitCode = 2;
+        printf("Error: cd requires folder to navigate to!\n");
+        exitCode = 2;
     } else {
         addBinPathToOptions(name);
+        pushDirectory(getcwd(NULL, 0));
         exitCode = chdir(getArgAt(1));
         // if the directory does not exist, print an error
         if (exitCode == -1) {
@@ -191,6 +262,8 @@ bool doesBinaryExist(char* name) {
     }
     
     if (path == NULL) {
+        if (fullPath) free(fullPath);
+        if (localName) free(localName);
         return false;
     }
 

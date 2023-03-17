@@ -18,5 +18,6 @@ int getCommandCount();
 Command* getFirstCommand();
 Command* getLastCommand();
 void configureError(Command *cmd, int fd);
+void freeAtExit();
 
 #endif

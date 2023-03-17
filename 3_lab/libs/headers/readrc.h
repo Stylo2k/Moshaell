@@ -14,5 +14,7 @@ char* getRcFilePath();
 void readSpecificRcFile(char* path);
 char* getCommandFromAlias(char* alias);
 void addAlias(char* alias, char* command);
+void freeAliasList();
+void freeRcFile();
 
 #endif

@@ -80,6 +80,10 @@ void addCommandToPipelineWithArgs(char* name, char** args, int argCount) {
 }
 
 
+void freeAtExit() {
+    free(pipeline);
+}
+
 /**
  * @brief frees the pipeline and all the commands in it
  */

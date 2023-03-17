@@ -98,6 +98,28 @@ void setYYlval(void *obj, YylvalType type);
                         state = OPTION_STATE;
                         return BUILTIN;
                     }
+"dirstack"          {
+                      if (state == OPTION_STATE) {
+                          DEBUG("OPTION: %s\n", yytext);
+                          setYYlval(yytext, YYVAL_STRING);
+                          return OPTION;
+                      }
+                      DEBUG("Performing dirstack\n");
+                      setYYlval(yytext, YYVAL_STRING);
+                      state = OPTION_STATE;
+                      return BUILTIN;
+                    }
+"popd"              {
+                      if (state == OPTION_STATE) {
+                          DEBUG("OPTION: %s\n", yytext);
+                          setYYlval(yytext, YYVAL_STRING);
+                          return OPTION;
+                      }
+                      DEBUG("Performing popd\n");
+                      setYYlval(yytext, YYVAL_STRING);
+                      state = OPTION_STATE;
+                      return BUILTIN;
+                    }
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 

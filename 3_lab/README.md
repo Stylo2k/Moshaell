@@ -49,6 +49,20 @@ First of all run :
 ```
 to see the help menu
 
+Every time you cd into a dir it gets pushed into a stack. 
+use popd to pop the top of the stack and cd into it.
+```bash
+./shell
+cd fuckYou
+popd
+```
+
+Use command dirstack to see the stack
+```bash
+./shell
+dirstack
+```
+
 Append to a file with the >> operator
 ```bash
 ./shell

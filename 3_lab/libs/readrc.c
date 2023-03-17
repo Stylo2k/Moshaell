@@ -62,6 +62,21 @@ void openConfigFile() {
     }
 }
 
+
+void freeRcFile() {
+    if (rcFilePath) {
+        free(rcFilePath);
+    }
+    if (rcFile) {
+        fclose(rcFile);
+    }
+    if (aliasList) {
+        freeAliasList();
+    }
+    if(PROMPT_START) free(PROMPT_START);
+    if(NAME_START) free(NAME_START);
+}
+
 /**
  * @brief color printing function
  * 
@@ -104,7 +119,11 @@ void toColor(COLOR color) {
  * @return COLOR the color
  */
 COLOR charToColor(char* char_) {
+    if (!char_) {
+        return WHITE;
+    }
     char color = char_[0];
+    free(char_);
     // convert the color to int
     int colorInt = color - '0';
     switch(colorInt) {
@@ -208,10 +227,22 @@ char* lookUpInConfigFile(char* string) {
                 char* value = strtok(NULL, "=");
                 if (value) {
                     value = stripLine(value);
+                    value = strdup(value);
+                    if (line) {
+                        free(line);
+                        line = NULL;
+                    }
                     return value;
                 }
             }
         }
+        if (line) {
+            free(line);
+            line = NULL;
+        }
+    }
+    if (line) {
+        free(line);
     }
     return NULL;
 }
@@ -292,7 +323,8 @@ void assignAliases() {
         // check whether the line starts with alias
         if (strncasecmp(line, "alias", 5) == 0) {
             // get the name
-            char* name = strtok(line, "=");
+            char* lineCopy = strdup(line);
+            char* name = strtok(lineCopy, "=");
             if (name) {
                 name = stripLine(name);
                 // get the command
@@ -324,7 +356,15 @@ void assignAliases() {
                     addAlias(name, command);
                 }
             }
+            free(lineCopy);
         }
+        if(line) {
+            free(line);
+            line = NULL;
+        }
+    }
+    if (line) {
+        free(line);
     }
 
 }

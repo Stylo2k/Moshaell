@@ -16,5 +16,6 @@ char** getNextHistoryArgs();
 int getPreviousHistoryArgsCount();
 int getNextHistoryArgsCount();
 void printSessionHistory();
+void freeHistory();
 
 #endif

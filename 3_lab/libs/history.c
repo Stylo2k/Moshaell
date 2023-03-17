@@ -70,6 +70,26 @@ void addToHistory(Command* command_) {
     historyIndex = history->numCommands;
 }
 
+
+void freeHistory() {
+    if (!history) {
+        DEBUG("No history to free\n");
+        return;
+    }
+    for (int i = 0; i < history->numCommands; i++) {
+        free(history->commands[i]);
+        for (int j = 0; j < history->numArgs[i]; j++) {
+            free(history->args[i][j]);
+        }
+        free(history->args[i]);
+    }
+    free(history->commands);
+    free(history->args);
+    free(history->numArgs);
+    free(history);
+    history = NULL;
+}
+
 /**
  * @brief checks if there is any history
  * 
