@@ -19,13 +19,13 @@
 # prompt_start_color - the color of the prompt start
 
 
-name_color =  "1"
+name_color =  "0"
 name_start = "╭─"
 
 host_name_color =  "2"
 path_color =  "4"
 
-prompt_start = "╰─!!! "
-prompt_start_color =  "3"
+prompt_start = "╰─x "
+prompt_start_color =  "1"
 
 alias ls="ls -l"
