@@ -1,0 +1,8 @@
+sleep 3 &
+jobs
+kill 1
+sleep 4 &
+kill 1
+kill 2 lol
+kill 2
+exit

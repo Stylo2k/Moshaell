@@ -1667,7 +1667,8 @@ int execChain() {
     isBuiltIn = true;
     addBuiltInToPipelineWithArgs(lastBuiltin, getOptions(), getNumberOfOptions());
   } else if (latestCMDPiped) {
-    exitCode = execCommands(getCommandAt(0));
+    exitCode = execCommands(getCommandAt(0), backGround);
+    resetPipeline();
     return exitCode;
   }
 
@@ -1825,6 +1826,20 @@ int main(int argc, char *argv[]) {
   if (experimental) {
     readConfigFile();
   }
+
+  struct sigaction sa;
+  sa.sa_sigaction = handleSigInt;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART; 
+  sigaction(SIGINT, &sa, NULL);
+
+  // handle sigchld
+  struct sigaction sa2;
+  sa2.sa_sigaction = handleSigChld;
+  sigemptyset(&sa2.sa_mask);
+  sa2.sa_flags = SA_RESTART;
+  sigaction(SIGCHLD, &sa2, NULL);
+
 
   initLexer(f);
   yyparse();

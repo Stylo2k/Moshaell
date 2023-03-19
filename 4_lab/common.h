@@ -15,6 +15,8 @@
 #include <termios.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <signal.h>
+
 
 #define CMD_NOT_FOUND 127
 

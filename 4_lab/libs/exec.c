@@ -2,20 +2,24 @@
 
 static int exitCode = 0;
 static bool alwaysTrue = false;
+static int currentBgIndex = 1;
+
 
 #include "../common.h"
 
+void addBGProcess(pid_t pid);
+
 typedef struct BGProcess {
     pid_t pid;
+    int index;
+    struct BGProcess* next;
+    struct BGProcess* prev;
 } BGProcess;
 
-typedef struct BGProcesses {
-    struct BGProcess* processes;
-    int size;
-    int index;
-} BGProcesses;
+static BGProcess* bgProcesses = NULL;
 
-static BGProcesses* bgProcesses = NULL;
+static pid_t fgProcess = -1;
+
 
 typedef struct DirectoryStack {
     char** directory;
@@ -23,8 +27,8 @@ typedef struct DirectoryStack {
     int size;
 } DirectoryStack;
 
-
 static DirectoryStack* directoryStack = NULL;
+
 
 typedef void (*function_ptr)(char*);
 
@@ -33,27 +37,86 @@ typedef struct {
     function_ptr func;
 } BuiltIn;
 
-void statusFunc(char* name);
-void historyFunc(char* name);
-void exitFunc(char* name);
-void changeDirectory(char* name);
-void sourceFunc(char* name);
-void aliasFunc(char* name);
-void popDir(char* name);
-void printDirStack(char* name);
-void printBGProcesses(char* _);
 
 BuiltIn builtin[] = {
     {"status", statusFunc},
     {"history", historyFunc},
     {"source", sourceFunc},
     {"alias", aliasFunc},
+    {"kill", killProcess},
     {"exit", exitFunc},
     {"popd", popDir},
     {"jobs", printBGProcesses},
     {"dirstack", printDirStack},
     {"cd", changeDirectory}
 };
+
+void killProcess(char* _) {
+    if (noOptions()) {
+        printf("Error: command requires an index!\n");
+        return;
+    }
+    char* charIndex = getArgAt(1);
+    int index = atoi(charIndex);
+    if (index == 0) {
+        printf("Error: invalid index provided!\n");
+        return;
+    }
+    // find the process
+    BGProcess* current = bgProcesses;
+    while (current) {
+        if (current->index == index) {
+            break;
+        }
+        current = current->next;
+    }
+    if (!current) {
+        printf("Error: this index is not a background process!\n");
+        return;
+    }
+    int signal = SIGTERM;
+    if (getArgAt(2)) {
+        char* charSignal = getArgAt(2);
+        signal = atoi(charSignal);
+        if (signal == 0) {
+            printf("Error: invalid signal provided!\n");
+            return;
+        }
+    }
+    // duplicate the entire current process
+    BGProcess* newProcess = calloc(1, sizeof(BGProcess));
+    newProcess->pid = current->pid;
+    newProcess->index = current->index;
+    newProcess->next = current->next;
+    newProcess->prev = current->prev;
+
+    
+    // kill the process with the given signal and wait for it to terminate
+    kill(current->pid, signal);
+    int status;
+    waitpid(current->pid, &status, 0);
+
+    // get the exit code using WIFEXITED and WTERMSIG
+    int exitCodeHere = 0;
+    if (WIFEXITED(exitCodeHere)) {
+        exitCodeHere = WEXITSTATUS(exitCodeHere);
+    } else if (WIFSIGNALED(exitCodeHere)) {
+        exitCodeHere = WTERMSIG(exitCodeHere);
+    }
+    exitCode = 128 + exitCodeHere;
+    
+    // remove the process from the list
+    if (newProcess->next) {
+        newProcess->next->prev = newProcess->prev;
+    }
+    if (newProcess->prev) {
+        newProcess->prev->next = newProcess->next;
+    }
+    if (newProcess == bgProcesses) {
+        bgProcesses = newProcess->next;
+    }
+    free(newProcess);
+}
 
 void aliasFunc(char* name) {
     if (noOptions()) {
@@ -108,17 +171,12 @@ void historyFunc(char* _) {
 }
 
 bool anyBGProcesses() {
-    if (!bgProcesses) {
-        return false;
-    }
-    // loop through all processes and check if they are still running
-    for (int i = 0; i < bgProcesses->index; i++) {
-        pid_t pid = bgProcesses->processes[i].pid;
-        int status;
-        pid_t result = waitpid(pid, &status, WNOHANG);
-        if (result == 0) {
+    BGProcess* current = bgProcesses;
+    while (current) {
+        if (current->pid != -1) {
             return true;
         }
+        current = current->next;
     }
     return false;
 }
@@ -140,6 +198,68 @@ void exitFunc(char* name) {
     freeAtExit();
     exit(finalExitCode);
 }
+
+void handleSigInt(int signo, siginfo_t *info, void *other) {
+    if (anyBGProcesses()) {
+        printf("Error: there are still background processes running!\n");
+        return;
+    }
+    if (fgProcess != -1) {
+        kill(fgProcess, SIGINT);
+        int status = 0;
+        waitpid(fgProcess, &status, 0);
+        fgProcess = -1;
+        return;
+    }
+    cleanUp();
+    freeAliasList();
+    freeHistory();
+    resetPipeline();
+    finalizeLexer();
+    freeAtExit();
+    exit(0);
+}
+
+
+void removeProcess(pid_t pid) {
+    if (!bgProcesses) {
+        return;
+    }
+    // remove the process from the list with the given pid
+    BGProcess* current = bgProcesses;
+    while (current) {
+        if (current->pid == pid) {
+            if (current->prev) {
+                current->prev->next = current->next;
+            }
+            if (current->next) {
+                current->next->prev = current->prev;
+            }
+            if (current == bgProcesses) {
+                bgProcesses = current->next;
+            }
+            free(current);
+            return;
+        }
+        current = current->next;
+    }
+}
+
+void handleSigChld(int signo, siginfo_t *info, void *other) {
+    DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
+    // wait for the process to terminate to avoid zombies
+    int status;
+    waitpid(info->si_pid, &status, 0);
+
+
+    // DEBUG("Process %d terminated with exit code %d\n", info->si_pid, exitCodeHere);
+    //  remove the process from the list
+    if (!bgProcesses) {
+        return;
+    }
+    removeProcess(info->si_pid);
+}
+
 
 void assertDirectoryStack() {
     if (!directoryStack) {
@@ -366,7 +486,7 @@ char* findBinary(char* name) {
  * @param commands the list of commands
  * @return int the exit code of the last command
  */
-int execCommands(Command* commands) {
+int execCommands(Command* commands, bool background) {
     if (!commands) {
         return 0;
     }
@@ -463,6 +583,15 @@ int execCommands(Command* commands) {
         }
     }
 
+    if (background) {
+        // add the pids to the list of background processes
+        for (int i = 0; i < n; i++) {
+            addBGProcess(pids[i]);
+        }
+        if (pids) free(pids);
+        return 0;
+    }
+
     // wait for all the children to finish
     // and set the exitCode to the last child's exit code
     for (int i = 0; i < n; i++) {
@@ -477,47 +606,53 @@ int execCommands(Command* commands) {
     return exitCode;
 }
 
-void assertBGProcesses() {
-    if (!bgProcesses) {
-        bgProcesses = calloc(1, sizeof(BGProcesses));
-         bgProcesses->processes = calloc(1, sizeof(BGProcess));
-        bgProcesses->index = 0;
-        bgProcesses->size = 1;
-    }
-    if (bgProcesses->index == bgProcesses->size) {
-        bgProcesses->size *= 2;
-        bgProcesses->processes = realloc(bgProcesses->processes, bgProcesses->size * sizeof(BGProcess));
-    }
-}
+// void assertBGProcesses() {
+    // if (!bgProcesses) {
+    //     bgProcesses = malloc(sizeof(BGProcess));
+    //     bgProcesses->pid = -1;
+    //     bgProcesses->next = NULL;
+    //     bgProcesses->prev = NULL;
+    // }
+// }
 
 void addBGProcess(pid_t pid) {
-    assertBGProcesses();
-    BGProcess* process = &bgProcesses->processes[bgProcesses->index];
-    process->pid = pid;
-    bgProcesses->index++;
+    // assertBGProcesses();
+    // add the pid to the list of background processes
+    BGProcess* head = bgProcesses;
+    
+    BGProcess* newProcess = malloc(sizeof(BGProcess));
+    newProcess->pid = pid;
+    newProcess->index = currentBgIndex++;
+    newProcess->next = NULL;
+    newProcess->prev = NULL;
+
+    if (!head) {
+        bgProcesses = newProcess;
+        return;
+    }
+
+    BGProcess* tail = head;
+    while (tail->next) {
+        tail = tail->next;
+    }
+    tail->next = newProcess;
+    newProcess->prev = tail;
 }
 
 void printBGProcesses(char* _) {
-    if (!bgProcesses) return;
-    // loop through all the processes and check if any of them have exited
-    // if so remove them from the list
-    for (int i = 0; i < bgProcesses->index; i++) {
-        BGProcess* process = &bgProcesses->processes[i];
-        int status;
-        pid_t pid = waitpid(process->pid, &status, WNOHANG);
-        if (pid == process->pid) {
-            // process has exited
-            // remove it from the list
-            for (int j = i; j < bgProcesses->index - 1; j++) {
-                bgProcesses->processes[j] = bgProcesses->processes[j + 1];
-            }
-            bgProcesses->index--;
-        }
+    BGProcess* processes = bgProcesses;
+    if(!processes) {
+        printf("No background processes!\n");
+        return;
+    }
+    // print the list of background processes from the back to the front
+    while (processes->next) {
+        processes = processes->next;
     }
 
-    for (int i = 0; i < bgProcesses->index; i++) {
-        BGProcess* process = &bgProcesses->processes[i];
-        printf("[%d] %d\n", i + 1, process->pid);
+    while (processes) {
+        printf("Process running with index %d PID: %d\n", processes->index, processes->pid);
+        processes = processes->prev;
     }
 }
 
@@ -594,17 +729,18 @@ int execCommand(Command* command, bool backGround) {
         DEBUG("Exec %s\n", commandPath);
 
         execv(commandPath, command->args);
-
     } else if (!backGround) {
+        fgProcess = pid;
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
         int status;
-        wait(&status);
+        waitpid(pid, &status, 0);
         exitCode = WEXITSTATUS(status);
         cleanUp();
-        
+        fgProcess = -1;
         return exitCode;
     } else if (backGround) {
+        close(pipefd[0]);
         addBGProcess(pid);
     }
     return 0;

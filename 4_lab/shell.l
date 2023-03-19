@@ -131,6 +131,17 @@ void setYYlval(void *obj, YylvalType type);
                       state = OPTION_STATE;
                       return BUILTIN;
                     }
+"kill"              {
+                      if (state == OPTION_STATE) {
+                          DEBUG("OPTION: %s\n", yytext);
+                          setYYlval(yytext, YYVAL_STRING);
+                          return OPTION;
+                      }
+                      DEBUG("Performing kill\n");
+                      setYYlval(yytext, YYVAL_STRING);
+                      state = OPTION_STATE;
+                      return BUILTIN;
+                    }
     /* Other grammar parts */
 "\""                BEGIN(string); /* We start reading a string until the next " char */
 
