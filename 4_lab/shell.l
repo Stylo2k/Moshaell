@@ -179,6 +179,7 @@ void setYYlval(void *obj, YylvalType type);
                     }
 "&"                 {
                       DEBUG("Returning AMP\n");
+                      state = COMMAND_STATE;
                       return AMP;
                     }
 

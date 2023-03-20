@@ -56,7 +56,7 @@
 
 program : {printShellPrompt();} InputLine;
 
-InputLine :   Chain     AMP {backGround = true; execChain();resetFlags();} End        InputLine 
+InputLine :   Chain     AMP AmpEnd {backGround = true; execChain();resetFlags();}        InputLine 
             | Chain OR_OP {execChain();resetFlags(); isOR = 1;} InputLine  {isOR = -1;setAlwaysTrue(false);}
             | Chain AND_OP {execChain();resetFlags(); isOR = 0;} InputLine {isOR = -1;setAlwaysTrue(false);}
             | Chain End {execChain();resetFlags();} InputLine                {isOR = -1; setAlwaysTrue(false); $$ = $1;}
@@ -64,10 +64,14 @@ InputLine :   Chain     AMP {backGround = true; execChain();resetFlags();} End  
             |                                    {isOR = -1; setAlwaysTrue(false); $$ = 0;}
             ;
 
+AmpEnd :
+        End 
+        |
+        ;
+
 End :       SEMICOLON
             | NEWLINE {printShellPrompt();}
             | SEMICOLON NEWLINE
-            |
             ;
 
 Chain :     Pipeline Redirections
@@ -211,24 +215,24 @@ Options: OPTION {
         Options
         |
         GLOB { 
-                  char **found;
-                  glob_t gstruct;
-                  int err;
-                  err = glob($1, GLOB_NOCHECK, NULL, &gstruct);
+                  // char **found;
+                  // glob_t gstruct;
+                  // int err;
+                  // err = glob($1, GLOB_NOCHECK, NULL, &gstruct);
                   
-                  if(err) {
-                      if( err != GLOB_NOMATCH ) {
-                        fprintf(stderr,"Some kinda glob error\n");
-                        exit(1);
-                      }
-                  }
+                  // if(err) {
+                  //     if( err != GLOB_NOMATCH ) {
+                  //       fprintf(stderr,"Some kinda glob error\n");
+                  //       exit(1);
+                  //     }
+                  // }
                   
-                  found = gstruct.gl_pathv;
-                  while(*found) {
-                    addOption(strdup(*found));
-                    found++;
-                  }
-                  globfree(&gstruct);
+                  // found = gstruct.gl_pathv;
+                  // while(*found) {
+                  //   addOption(strdup(*found));
+                  //   found++;
+                  // }
+                  // globfree(&gstruct);
               }
         Options
         |
@@ -302,7 +306,7 @@ void resetFlags() {
   isBuiltIn = false;
   isOR = -1;
   currentRedirIndex = 0;
-  state = COMMAND_STATE;
+  // state = COMMAND_STATE;
   latestCMDPiped = false;
   backGround = false;
   lastBuiltin = NULL;
@@ -396,7 +400,7 @@ int main(int argc, char *argv[]) {
         break;
       case 'c':
         // get the code between quotes and set f to it
-        f = fmemopen(optarg, strlen(optarg), "r");
+        // f = fmemopen(optarg, strlen(optarg), "r");
         break;
       case 'h':
         printHelpMenu(argv);

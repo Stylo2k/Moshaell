@@ -54,12 +54,14 @@ BuiltIn builtin[] = {
 void killProcess(char* _) {
     if (noOptions()) {
         printf("Error: command requires an index!\n");
+        exitCode = 2;
         return;
     }
     char* charIndex = getArgAt(1);
     int index = atoi(charIndex);
     if (index == 0) {
         printf("Error: invalid index provided!\n");
+        exitCode = 2;
         return;
     }
     // find the process
@@ -72,6 +74,7 @@ void killProcess(char* _) {
     }
     if (!current) {
         printf("Error: this index is not a background process!\n");
+        exitCode = 2;
         return;
     }
     int signal = SIGTERM;
@@ -80,6 +83,7 @@ void killProcess(char* _) {
         signal = atoi(charSignal);
         if (signal == 0) {
             printf("Error: invalid signal provided!\n");
+            exitCode = 2;
             return;
         }
     }
@@ -98,12 +102,11 @@ void killProcess(char* _) {
 
     // get the exit code using WIFEXITED and WTERMSIG
     int exitCodeHere = 0;
-    if (WIFEXITED(exitCodeHere)) {
-        exitCodeHere = WEXITSTATUS(exitCodeHere);
-    } else if (WIFSIGNALED(exitCodeHere)) {
-        exitCodeHere = WTERMSIG(exitCodeHere);
+    if (WIFSIGNALED(status)) {
+        int sig = WTERMSIG(status);
+        exitCodeHere = 128 + sig;
     }
-    exitCode = 128 + exitCodeHere;
+    exitCode = exitCodeHere;
     
     // remove the process from the list
     if (newProcess->next) {
@@ -188,6 +191,7 @@ void exitFunc(char* name) {
     }
     if(anyBGProcesses()) {
         printf("Error: there are still background processes running!\n");
+        exitCode = 2;
         return;
     }
     cleanUp();
@@ -202,6 +206,7 @@ void exitFunc(char* name) {
 void handleSigInt(int signo, siginfo_t *info, void *other) {
     if (anyBGProcesses()) {
         printf("Error: there are still background processes running!\n");
+        exitCode = 2;
         return;
     }
     if (fgProcess != -1) {
@@ -209,6 +214,13 @@ void handleSigInt(int signo, siginfo_t *info, void *other) {
         int status = 0;
         waitpid(fgProcess, &status, 0);
         fgProcess = -1;
+        // get the exit code using WIFEXITED and WTERMSIG
+        int exitCodeHere = 0;
+        if (WIFSIGNALED(exitCodeHere)) {
+            exitCodeHere = WTERMSIG(exitCodeHere);
+            exitCodeHere = 128 + exitCodeHere;
+        }
+        exitCode = exitCodeHere;
         return;
     }
     cleanUp();
@@ -248,9 +260,20 @@ void removeProcess(pid_t pid) {
 void handleSigChld(int signo, siginfo_t *info, void *other) {
     DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
     // wait for the process to terminate to avoid zombies
+    if (info->si_pid == -1) {
+        return;
+    }
     int status;
     waitpid(info->si_pid, &status, 0);
-
+    // get the exit code using WIFEXITED and WTERMSIG
+    int exitCodeHere = 0;
+    if (WIFEXITED(exitCodeHere)) {
+        exitCodeHere = WEXITSTATUS(exitCodeHere);
+    } else if (WIFSIGNALED(exitCodeHere)) {
+        exitCodeHere = WTERMSIG(exitCodeHere);
+        exitCodeHere = 128 + exitCodeHere;
+    }
+    exitCode = exitCodeHere;
 
     // DEBUG("Process %d terminated with exit code %d\n", info->si_pid, exitCodeHere);
     //  remove the process from the list
@@ -313,13 +336,14 @@ void popDir(char* _) {
 }
 
 void changeDirectory(char* name) {
-    assertDirectoryStack();
+    if (experimental) assertDirectoryStack();
+
     if (noOptions()) {
         printf("Error: cd requires folder to navigate to!\n");
         exitCode = 2;
     } else {
         addBinPathToOptions(name);
-        pushDirectory(getcwd(NULL, 0));
+        if (experimental) pushDirectory(getcwd(NULL, 0));
         exitCode = chdir(getArgAt(1));
         // if the directory does not exist, print an error
         if (exitCode == -1) {
@@ -589,6 +613,7 @@ int execCommands(Command* commands, bool background) {
             addBGProcess(pids[i]);
         }
         if (pids) free(pids);
+        exitCode = 0;
         return 0;
     }
 
@@ -597,23 +622,12 @@ int execCommands(Command* commands, bool background) {
     for (int i = 0; i < n; i++) {
         int status;
         waitpid(pids[i], &status, 0);
-        if (WIFEXITED(status)) {
-            exitCode = WEXITSTATUS(status);
-        }
+        exitCode = WEXITSTATUS(status);
     }
 
     if(pids) free(pids);
     return exitCode;
 }
-
-// void assertBGProcesses() {
-    // if (!bgProcesses) {
-    //     bgProcesses = malloc(sizeof(BGProcess));
-    //     bgProcesses->pid = -1;
-    //     bgProcesses->next = NULL;
-    //     bgProcesses->prev = NULL;
-    // }
-// }
 
 void addBGProcess(pid_t pid) {
     // assertBGProcesses();
@@ -643,6 +657,7 @@ void printBGProcesses(char* _) {
     BGProcess* processes = bgProcesses;
     if(!processes) {
         printf("No background processes!\n");
+        exitCode = 0;
         return;
     }
     // print the list of background processes from the back to the front
@@ -651,9 +666,10 @@ void printBGProcesses(char* _) {
     }
 
     while (processes) {
-        printf("Process running with index %d PID: %d\n", processes->index, processes->pid);
+        printf("Process running with index %d\n", processes->index);
         processes = processes->prev;
     }
+    exitCode = 0;
 }
 
 
@@ -742,6 +758,7 @@ int execCommand(Command* command, bool backGround) {
     } else if (backGround) {
         close(pipefd[0]);
         addBGProcess(pid);
+        exitCode = 0;
     }
     return 0;
 }
