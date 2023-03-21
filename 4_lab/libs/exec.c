@@ -111,7 +111,7 @@ void killProcess(char* _) {
     kill(current->pid, signal);
     int status;
     
-    if(waitpid(current->pid, &status, 0) == -1) {
+    if(waitpid(current->pid, &status,  WNOHANG | WUNTRACED) == -1) {
         perror("waitpid");
         DEBUG("HUH? waitpid failed! exec.c:%d\n", __LINE__);
         exit(69);
@@ -274,25 +274,18 @@ void removeProcess(pid_t pid) {
 void handleSigChld(int signo, siginfo_t *info, void *other) {
     DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
     // wait for the process to terminate to avoid zombies
-    if (info->si_pid == -1 || info->si_pid == 0) {
-        DEBUG("Fake process 😐\n");
-        return;
-    }
     int status;
     if (waitpid(info->si_pid, &status,  WNOHANG | WUNTRACED) == -1) {
         DEBUG("FAKEE ASLLL 😐\n");
         return;
     }
 
-    // DEBUG("Process %d terminated with exit code %d\n", info->si_pid, exitCodeHere);
     //  remove the process from the list
-    if (!bgProcesses) {
-        return;
+    if (WEXITSTATUS(status)==127){
+        // printf("Error: command not found!\n");
+        fflush(stdout);
     }
 
-    if (WEXITSTATUS(status)==127){
-        printf("Error: command not found!\n");
-    }
     removeProcess(info->si_pid);
 }
 
@@ -643,27 +636,25 @@ int execCommands(Command* commands, bool background) {
 }
 
 void addBGProcess(pid_t pid) {
-    // assertBGProcesses();
-    // add the pid to the list of background processes
-    BGProcess* head = bgProcesses;
-    
-    BGProcess* newProcess = malloc(sizeof(BGProcess));
-    newProcess->pid = pid;
-    newProcess->index = currentBgIndex++;
-    newProcess->next = NULL;
-    newProcess->prev = NULL;
+    BGProcess* process = malloc(sizeof(BGProcess));
+    process->pid = pid;
+    process->index = currentBgIndex;
+    process->next = NULL;
+    process->prev = NULL;
 
-    if (!head) {
-        bgProcesses = newProcess;
-        return;
+    if (!bgProcesses) {
+        bgProcesses = process;
+    } else {
+        BGProcess* processes = bgProcesses;
+        while (processes->next) {
+            processes = processes->next;
+        }
+        processes->next = process;
+        process->prev = processes;
     }
+    currentBgIndex++;
 
-    BGProcess* tail = head;
-    while (tail->next) {
-        tail = tail->next;
-    }
-    tail->next = newProcess;
-    newProcess->prev = tail;
+    DEBUG("Added background process with pid %d\n", pid);
 }
 
 void printBGProcesses(char* _) {
@@ -696,7 +687,7 @@ int execCommand(Command* command, bool backGround) {
     char* commandName = command->name;
 
     if (builtIn) {
-        printf("Executing built-in command %s\n", commandName);
+        DEBUG("Executing built-in command %s\n", commandName);
         executeBuiltIn(command);
         cleanUp();
         return exitCode;
@@ -750,13 +741,14 @@ int execCommand(Command* command, bool backGround) {
 
         // this will be performed by the child process
         // so execute the command
-        printf("Exec %s\n", commandPath);
+        DEBUG("Exec %s\n", commandPath);
 
-        execv(commandPath, command->args);
+        execvp(commandPath, command->args);
         // command not found, return 127
+        printf("Error: command not found!\n");
+        fflush(stdout);
         cleanUp();
         resetPipeline();
-        printf("Error: command not found!\n");
         exitCode = 127;
         exit(127);
     } else if (!backGround) {
@@ -769,7 +761,7 @@ int execCommand(Command* command, bool backGround) {
         cleanUp();
         fgProcess = -1;
         return exitCode;
-    } else if (backGround ) {
+    } else if (backGround) {
         close(pipefd[0]);
         addBGProcess(pid);
         exitCode = 0;

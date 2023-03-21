@@ -254,7 +254,6 @@ int execPipeline() {
   Command* command = NULL;
   while ((command = getCommandAt(index))) {
     exitCode = execCommand(command, backGround);
-    printf("just executed %s\n", command->name);
     index++;
   }
   return exitCode;
