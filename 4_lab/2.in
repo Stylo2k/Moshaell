@@ -1,6 +1,4 @@
-sleep 10 &
-jobs
+ls & status
+status
 sleep 1
-kill 1
-sleep 1
-exit
+status

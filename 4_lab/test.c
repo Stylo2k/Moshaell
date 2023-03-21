@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
 
 int main() {
-    // get an int from the user
-    int i;
-    scanf("%d", &i);
-    printf("You entered: %d\n", i);
-    return 0;
+    // get pid
+    pid_t pid = getpid();
+    
+    kill(pid, SIGINT);
+
+    sleep(2);
 }

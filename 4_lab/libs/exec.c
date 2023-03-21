@@ -58,7 +58,13 @@ void killProcess(char* _) {
         return;
     }
     char* charIndex = getArgAt(1);
-    int index = atoi(charIndex);
+    char* stringPart = NULL;
+    int index = strtol(charIndex, &stringPart, 10);
+    if (strcmp(stringPart, "")) {
+        printf("Error: invalid index provided!\n");
+        exitCode = 2;
+        return;
+    }
     if (index == 0) {
         printf("Error: invalid index provided!\n");
         exitCode = 2;
@@ -80,7 +86,12 @@ void killProcess(char* _) {
     int signal = SIGTERM;
     if (getArgAt(2)) {
         char* charSignal = getArgAt(2);
-        signal = atoi(charSignal);
+        signal = strtol(charSignal, &stringPart, 10);
+        if (strcasecmp(stringPart, "")) {
+            printf("Error: invalid signal provided!\n");
+            exitCode = 2;
+            return;
+        }
         if (signal == 0) {
             printf("Error: invalid signal provided!\n");
             exitCode = 2;
@@ -96,29 +107,33 @@ void killProcess(char* _) {
 
     
     // kill the process with the given signal and wait for it to terminate
+    DEBUG("Killing process %d, idx=%d with signal %d", current->pid, current->index, signal);
     kill(current->pid, signal);
     int status;
-    waitpid(current->pid, &status, 0);
+    
+    if(waitpid(current->pid, &status, 0) == -1) {
+        perror("waitpid");
+        DEBUG("HUH? waitpid failed! exec.c:%d\n", __LINE__);
+        exit(69);
+    }
 
     // get the exit code using WIFEXITED and WTERMSIG
-    int exitCodeHere = 0;
     if (WIFSIGNALED(status)) {
-        int sig = WTERMSIG(status);
-        exitCodeHere = 128 + sig;
+        exitCode = 128 + WTERMSIG(status);
     }
-    exitCode = exitCodeHere;
     
     // remove the process from the list
-    if (newProcess->next) {
-        newProcess->next->prev = newProcess->prev;
+    if (current->prev) {
+        current->prev->next = current->next;
     }
-    if (newProcess->prev) {
-        newProcess->prev->next = newProcess->next;
+    if (current->next) {
+        current->next->prev = current->prev;
     }
-    if (newProcess == bgProcesses) {
-        bgProcesses = newProcess->next;
+    if (current == bgProcesses) {
+        bgProcesses = current->next;
     }
-    free(newProcess);
+    free(current);
+    if(newProcess) free(newProcess);
 }
 
 void aliasFunc(char* name) {
@@ -166,6 +181,7 @@ void sourceFunc(char* name) {
 
 void statusFunc(char* _) {
     printf("The most recent exit code is: %d\n", exitCode);
+    fflush(stdout);
     alwaysTrue = true;
 }
 
@@ -212,15 +228,13 @@ void handleSigInt(int signo, siginfo_t *info, void *other) {
     if (fgProcess != -1) {
         kill(fgProcess, SIGINT);
         int status = 0;
-        waitpid(fgProcess, &status, 0);
+        waitpid(fgProcess, &status,  0);
         fgProcess = -1;
         // get the exit code using WIFEXITED and WTERMSIG
-        int exitCodeHere = 0;
-        if (WIFSIGNALED(exitCodeHere)) {
-            exitCodeHere = WTERMSIG(exitCodeHere);
-            exitCodeHere = 128 + exitCodeHere;
+        if (WIFSIGNALED(status)) {
+            exitCode = 128 + WTERMSIG(status);
         }
-        exitCode = exitCodeHere;
+
         return;
     }
     cleanUp();
@@ -260,25 +274,24 @@ void removeProcess(pid_t pid) {
 void handleSigChld(int signo, siginfo_t *info, void *other) {
     DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
     // wait for the process to terminate to avoid zombies
-    if (info->si_pid == -1) {
+    if (info->si_pid == -1 || info->si_pid == 0) {
+        DEBUG("Fake process 😐\n");
         return;
     }
     int status;
-    waitpid(info->si_pid, &status, 0);
-    // get the exit code using WIFEXITED and WTERMSIG
-    int exitCodeHere = 0;
-    if (WIFEXITED(exitCodeHere)) {
-        exitCodeHere = WEXITSTATUS(exitCodeHere);
-    } else if (WIFSIGNALED(exitCodeHere)) {
-        exitCodeHere = WTERMSIG(exitCodeHere);
-        exitCodeHere = 128 + exitCodeHere;
+    if (waitpid(info->si_pid, &status,  WNOHANG | WUNTRACED) == -1) {
+        DEBUG("FAKEE ASLLL 😐\n");
+        return;
     }
-    exitCode = exitCodeHere;
 
     // DEBUG("Process %d terminated with exit code %d\n", info->si_pid, exitCodeHere);
     //  remove the process from the list
     if (!bgProcesses) {
         return;
+    }
+
+    if (WEXITSTATUS(status)==127){
+        printf("Error: command not found!\n");
     }
     removeProcess(info->si_pid);
 }
@@ -683,7 +696,7 @@ int execCommand(Command* command, bool backGround) {
     char* commandName = command->name;
 
     if (builtIn) {
-        DEBUG("Executing built-in command %s\n", commandName);
+        printf("Executing built-in command %s\n", commandName);
         executeBuiltIn(command);
         cleanUp();
         return exitCode;
@@ -696,14 +709,9 @@ int execCommand(Command* command, bool backGround) {
     }
  
     char* commandPath = command->path;
-    if (!commandPath) {    
-        // command not found, return 127
-        cleanUp();
-        printf("Error: command not found!\n");
-        exitCode = 127;
-        return 127;
+    if (!commandPath || strcmp(commandPath, commandName) == 0) {
+        commandPath = command->name;
     }
-    
 
     int commandIn = command->in;
     int commandOut = command->out;
@@ -742,25 +750,31 @@ int execCommand(Command* command, bool backGround) {
 
         // this will be performed by the child process
         // so execute the command
-        DEBUG("Exec %s\n", commandPath);
+        printf("Exec %s\n", commandPath);
 
         execv(commandPath, command->args);
+        // command not found, return 127
+        cleanUp();
+        resetPipeline();
+        printf("Error: command not found!\n");
+        exitCode = 127;
+        exit(127);
     } else if (!backGround) {
         fgProcess = pid;
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
         int status;
-        waitpid(pid, &status, 0);
+        waitpid(pid, &status,  0);
         exitCode = WEXITSTATUS(status);
         cleanUp();
         fgProcess = -1;
         return exitCode;
-    } else if (backGround) {
+    } else if (backGround ) {
         close(pipefd[0]);
         addBGProcess(pid);
         exitCode = 0;
     }
-    return 0;
+    return 127;
 }
 
 bool isAlwaysTrue() {

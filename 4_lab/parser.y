@@ -254,6 +254,7 @@ int execPipeline() {
   Command* command = NULL;
   while ((command = getCommandAt(index))) {
     exitCode = execCommand(command, backGround);
+    printf("just executed %s\n", command->name);
     index++;
   }
   return exitCode;
@@ -429,14 +430,14 @@ int main(int argc, char *argv[]) {
   struct sigaction sa;
   sa.sa_sigaction = handleSigInt;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART; 
+  sa.sa_flags = SA_RESTART | SA_SIGINFO; 
   sigaction(SIGINT, &sa, NULL);
 
   // handle sigchld
   struct sigaction sa2;
   sa2.sa_sigaction = handleSigChld;
   sigemptyset(&sa2.sa_mask);
-  sa2.sa_flags = SA_RESTART;
+  sa2.sa_flags = SA_RESTART | SA_SIGINFO;
   sigaction(SIGCHLD, &sa2, NULL);
 
 
