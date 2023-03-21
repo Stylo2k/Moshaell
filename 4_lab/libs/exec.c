@@ -271,22 +271,23 @@ void removeProcess(pid_t pid) {
     }
 }
 
+
+
 void handleSigChld(int signo, siginfo_t *info, void *other) {
     DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
-    // wait for the process to terminate to avoid zombies
     int status;
-    if (waitpid(info->si_pid, &status,  WNOHANG | WUNTRACED) == -1) {
-        DEBUG("FAKEE ASLLL 😐\n");
-        return;
+    // check the entire list of bg processes
+    BGProcess* current = bgProcesses;
+    while (current) {
+        if (waitpid(current->pid, &status,  WNOHANG) == current->pid) {
+            if (WEXITSTATUS(status)==127){
+                printf("Error: command not found!\n");
+            }
+            removeProcess(current->pid);
+            break;
+        }
+        current = current->next;
     }
-
-    //  remove the process from the list
-    if (WEXITSTATUS(status)==127){
-        // printf("Error: command not found!\n");
-        fflush(stdout);
-    }
-
-    removeProcess(info->si_pid);
 }
 
 
@@ -660,7 +661,7 @@ void addBGProcess(pid_t pid) {
 void printBGProcesses(char* _) {
     BGProcess* processes = bgProcesses;
     if(!processes) {
-        printf("No background processes!\n");
+        DEBUG("No background processes!\n");
         exitCode = 0;
         return;
     }
