@@ -215,24 +215,24 @@ Options: OPTION {
         Options
         |
         GLOB { 
-                  // char **found;
-                  // glob_t gstruct;
-                  // int err;
-                  // err = glob($1, GLOB_NOCHECK, NULL, &gstruct);
+                  char **found;
+                  glob_t gstruct;
+                  int err;
+                  err = glob($1, GLOB_NOCHECK, NULL, &gstruct);
                   
-                  // if(err) {
-                  //     if( err != GLOB_NOMATCH ) {
-                  //       fprintf(stderr,"Some kinda glob error\n");
-                  //       exit(1);
-                  //     }
-                  // }
+                  if(err) {
+                      if( err != GLOB_NOMATCH ) {
+                        fprintf(stderr,"Some kinda glob error\n");
+                        exit(1);
+                      }
+                  }
                   
-                  // found = gstruct.gl_pathv;
-                  // while(*found) {
-                  //   addOption(strdup(*found));
-                  //   found++;
-                  // }
-                  // globfree(&gstruct);
+                  found = gstruct.gl_pathv;
+                  while(*found) {
+                    addOption(strdup(*found));
+                    found++;
+                  }
+                  globfree(&gstruct);
               }
         Options
         |
@@ -245,7 +245,7 @@ bool failureExitCode(int code) {
 }
 
 bool successExitCode(int code) {
-  return code == EXIT_SUCCESS || isAlwaysTrue();
+  return code == EXIT_SUCCESS;
 }
 
 int execPipeline() {

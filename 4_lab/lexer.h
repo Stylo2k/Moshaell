@@ -11,3 +11,4 @@ void readConfigFile();
 bool readingCommand();
 
 #endif
+

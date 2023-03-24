@@ -10,4 +10,6 @@ int main() {
     kill(pid, SIGINT);
 
     sleep(2);
+
+    printf("Hello World\n");
 }

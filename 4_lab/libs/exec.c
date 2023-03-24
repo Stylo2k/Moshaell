@@ -98,6 +98,18 @@ void killProcess(char* _) {
             return;
         }
     }
+    
+    // kill the process with the given signal and wait for it to terminate
+    DEBUG("Killing process %d, idx=%d with signal %d", current->pid, current->index, signal);
+    kill(current->pid, signal);
+    int status = 0;
+    // get the exit code using WIFEXITED and WTERMSIG
+    if (WIFSIGNALED(status)) {
+        exitCode = 128 + WTERMSIG(status);
+    } else {
+        DEBUG("Process did not signal : %d\n", exitCode);
+        return;
+    }
     // duplicate the entire current process
     BGProcess* newProcess = calloc(1, sizeof(BGProcess));
     newProcess->pid = current->pid;
@@ -105,23 +117,6 @@ void killProcess(char* _) {
     newProcess->next = current->next;
     newProcess->prev = current->prev;
 
-    
-    // kill the process with the given signal and wait for it to terminate
-    DEBUG("Killing process %d, idx=%d with signal %d", current->pid, current->index, signal);
-    kill(current->pid, signal);
-    int status;
-    
-    if(waitpid(current->pid, &status,  WNOHANG | WUNTRACED) == -1) {
-        perror("waitpid");
-        DEBUG("HUH? waitpid failed! exec.c:%d\n", __LINE__);
-        exit(69);
-    }
-
-    // get the exit code using WIFEXITED and WTERMSIG
-    if (WIFSIGNALED(status)) {
-        exitCode = 128 + WTERMSIG(status);
-    }
-    
     // remove the process from the list
     if (current->prev) {
         current->prev->next = current->next;
@@ -220,21 +215,19 @@ void exitFunc(char* name) {
 }
 
 void handleSigInt(int signo, siginfo_t *info, void *other) {
+    if (fgProcess != -1) {
+        kill(fgProcess, SIGINT);
+        fgProcess = -1;
+        int status = 0;
+        if (WIFSIGNALED(status)) {
+            DEBUG("Terminated by signal %d\n", WTERMSIG(status));
+            exitCode = 128 + WTERMSIG(status);
+        }
+        return;
+    }
     if (anyBGProcesses()) {
         printf("Error: there are still background processes running!\n");
         exitCode = 2;
-        return;
-    }
-    if (fgProcess != -1) {
-        kill(fgProcess, SIGINT);
-        int status = 0;
-        waitpid(fgProcess, &status,  0);
-        fgProcess = -1;
-        // get the exit code using WIFEXITED and WTERMSIG
-        if (WIFSIGNALED(status)) {
-            exitCode = 128 + WTERMSIG(status);
-        }
-
         return;
     }
     cleanUp();
@@ -271,23 +264,20 @@ void removeProcess(pid_t pid) {
     }
 }
 
-
-
 void handleSigChld(int signo, siginfo_t *info, void *other) {
     DEBUG("Child process terminated!\nPID: %d\n", info->si_pid);
+    // wait for the process to terminate to avoid zombies
     int status;
-    // check the entire list of bg processes
-    BGProcess* current = bgProcesses;
-    while (current) {
-        if (waitpid(current->pid, &status,  WNOHANG) == current->pid) {
-            if (WEXITSTATUS(status)==127){
-                printf("Error: command not found!\n");
-            }
-            removeProcess(current->pid);
-            break;
-        }
-        current = current->next;
+    if (waitpid(info->si_pid, &status,  WNOHANG) != info->si_pid) {
+        DEBUG("FAKEE ASLLL 😐\n");
+        return;
     }
+
+    if (WEXITSTATUS(status) == 127){
+        printf("Error: command not found!\n");
+    }
+
+    removeProcess(info->si_pid);
 }
 
 
@@ -637,31 +627,33 @@ int execCommands(Command* commands, bool background) {
 }
 
 void addBGProcess(pid_t pid) {
-    BGProcess* process = malloc(sizeof(BGProcess));
-    process->pid = pid;
-    process->index = currentBgIndex;
-    process->next = NULL;
-    process->prev = NULL;
+    // assertBGProcesses();
+    // add the pid to the list of background processes
+    BGProcess* head = bgProcesses;
+    
+    BGProcess* newProcess = malloc(sizeof(BGProcess));
+    newProcess->pid = pid;
+    newProcess->index = currentBgIndex++;
+    newProcess->next = NULL;
+    newProcess->prev = NULL;
 
-    if (!bgProcesses) {
-        bgProcesses = process;
-    } else {
-        BGProcess* processes = bgProcesses;
-        while (processes->next) {
-            processes = processes->next;
-        }
-        processes->next = process;
-        process->prev = processes;
+    if (!head) {
+        bgProcesses = newProcess;
+        return;
     }
-    currentBgIndex++;
 
-    DEBUG("Added background process with pid %d\n", pid);
+    BGProcess* tail = head;
+    while (tail->next) {
+        tail = tail->next;
+    }
+    tail->next = newProcess;
+    newProcess->prev = tail;
 }
 
 void printBGProcesses(char* _) {
     BGProcess* processes = bgProcesses;
     if(!processes) {
-        DEBUG("No background processes!\n");
+        printf("No background processes!\n");
         exitCode = 0;
         return;
     }
@@ -719,6 +711,7 @@ int execCommand(Command* command, bool backGround) {
     pid_t pid = fork();
     if (pid == 0) {
         if (backGround) {
+            // TODO: maybe add sigint ignore
             // redirect the stdin
             dup2(pipefd[0], STDIN_FILENO);
         }
@@ -744,10 +737,8 @@ int execCommand(Command* command, bool backGround) {
         // so execute the command
         DEBUG("Exec %s\n", commandPath);
 
-        execvp(commandPath, command->args);
+        execv(commandPath, command->args);
         // command not found, return 127
-        printf("Error: command not found!\n");
-        fflush(stdout);
         cleanUp();
         resetPipeline();
         exitCode = 127;
@@ -756,9 +747,19 @@ int execCommand(Command* command, bool backGround) {
         fgProcess = pid;
         // this will be performed by the parent process
         // so tell it to wait for the child process to finish
-        int status;
-        waitpid(pid, &status,  0);
-        exitCode = WEXITSTATUS(status);
+        int status = 0;
+        
+        waitpid(pid, &status, 0);
+
+        if (WIFEXITED(status)) {
+            exitCode = WEXITSTATUS(status);
+            if (exitCode == 127) {
+                printf("Error: command not found!\n");
+            }
+        } else if (WIFSIGNALED(status)) {
+            exitCode = 128 + WTERMSIG(status);
+            DEBUG("changed exit code to %d\n", exitCode);
+        }
         cleanUp();
         fgProcess = -1;
         return exitCode;

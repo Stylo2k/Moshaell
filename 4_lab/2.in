@@ -1,7 +1,2 @@
-echo Background processes should always be successful 
 idk & status
-echo Background processes should not affect exit code at any point
-bash -c "sleep 1 && exit 12" & status
-sleep 2
-status
-exit
+sleep 1
