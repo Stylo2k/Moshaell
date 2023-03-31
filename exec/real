@@ -1,0 +1,47 @@
+
+Elf file type is DYN (Shared object file)
+Entry point 0x9f80
+There are 12 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  LOAD           0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000008158 0x0000000000008158  R      0x1000
+  LOAD           0x0000000000009000 0x0000000000009000 0x0000000000009000
+                 0x00000000000947f1 0x00000000000947f1  R E    0x1000
+  LOAD           0x000000000009e000 0x000000000009e000 0x000000000009e000
+                 0x00000000000284c0 0x00000000000284c0  R      0x1000
+  LOAD           0x00000000000c6de0 0x00000000000c7de0 0x00000000000c7de0
+                 0x0000000000005350 0x0000000000006a80  RW     0x1000
+  DYNAMIC        0x00000000000c9c18 0x00000000000cac18 0x00000000000cac18
+                 0x00000000000001b0 0x00000000000001b0  RW     0x8
+  NOTE           0x00000000000002e0 0x00000000000002e0 0x00000000000002e0
+                 0x0000000000000020 0x0000000000000020  R      0x8
+  NOTE           0x0000000000000300 0x0000000000000300 0x0000000000000300
+                 0x0000000000000044 0x0000000000000044  R      0x4
+  TLS            0x00000000000c6de0 0x00000000000c7de0 0x00000000000c7de0
+                 0x0000000000000020 0x0000000000000060  R      0x8
+  GNU_PROPERTY   0x00000000000002e0 0x00000000000002e0 0x00000000000002e0
+                 0x0000000000000020 0x0000000000000020  R      0x8
+  GNU_EH_FRAME   0x00000000000ba0f0 0x00000000000ba0f0 0x00000000000ba0f0
+                 0x0000000000001c9c 0x0000000000001c9c  R      0x4
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+  GNU_RELRO      0x00000000000c6de0 0x00000000000c7de0 0x00000000000c7de0
+                 0x0000000000003220 0x0000000000003220  R      0x1
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     .note.gnu.property .note.gnu.build-id .note.ABI-tag .gnu.hash .dynsym .dynstr .rela.dyn .rela.plt 
+   01     .init .plt .plt.got .plt.sec .text __libc_freeres_fn .fini 
+   02     .rodata .stapsdt.base .eh_frame_hdr .eh_frame .gcc_except_table 
+   03     .tdata .init_array .fini_array .data.rel.ro .dynamic .got .data __libc_subfreeres __libc_IO_vtables __libc_atexit .bss __libc_freeres_ptrs 
+   04     .dynamic 
+   05     .note.gnu.property 
+   06     .note.gnu.build-id .note.ABI-tag 
+   07     .tdata .tbss 
+   08     .note.gnu.property 
+   09     .eh_frame_hdr 
+   10     
+   11     .tdata .init_array .fini_array .data.rel.ro .dynamic .got 

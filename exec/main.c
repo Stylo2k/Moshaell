@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <elf.h>
+#include <sys/mman.h>
+#include "exec.h"
+#include <alloca.h>
 
-
-int main(int argc, char** argv) {
+int main(int argc, char** argv, char** envp) {
+    setbuf(stdout, NULL);
     // argument 1 is the name of the elf file
     
     // Open the given binary, read the ELF headers and perform some sanity checks
@@ -11,211 +15,229 @@ int main(int argc, char** argv) {
     // executable, or if it is not an executable at all, then exit with an error.
     // that the values in the ELF header are usable for your application (for example, you cannot accept a binary compiled for ARM).
 
-    File* file = fopen(argv[1], "r");
+    FILE* file = fopen(argv[1], "r");
     if (file == NULL) {
         printf("Error: Could not open file %s\n", argv[1]);
         exit(1);
     }
 
-    // Read the ELF header
-    Elf32_Ehdr header;
-    fread(&header, sizeof(Elf32_Ehdr), 1, file);
+    // Read the ELF header, and check that it is a valid ELF file
+    // 64-bit, little-endian, executable
+    Elf64_Ehdr elf_header;
+    fread(&elf_header, sizeof(elf_header), 1, file);
 
-    // Check if the file is an ELF file
-    if (header.e_ident[EI_MAG0] != ELFMAG0 ||
-        header.e_ident[EI_MAG1] != ELFMAG1 ||
-        header.e_ident[EI_MAG2] != ELFMAG2 ||
-        header.e_ident[EI_MAG3] != ELFMAG3) {
-        printf("Error: File %s is not an ELF file\n", argv[1]);
+    if (elf_header.e_ident[EI_MAG0] != ELFMAG0 ||
+        elf_header.e_ident[EI_MAG1] != ELFMAG1 ||
+        elf_header.e_ident[EI_MAG2] != ELFMAG2 ||
+        elf_header.e_ident[EI_MAG3] != ELFMAG3) {
+        printf("Error: %s is not an ELF file\n", argv[1]);
         exit(1);
     }
 
-    // Check if the file is a 32-bit executable
-    if (header.e_ident[EI_CLASS] != ELFCLASS32) {
-        printf("Error: File %s is not a 32-bit executable\n", argv[1]);
+    if (elf_header.e_ident[EI_CLASS] != ELFCLASS64) {
+        printf("Error: %s is not a 64-bit ELF file\n", argv[1]);
         exit(1);
     }
 
-    // Check if the file is an executable
-    if (header.e_type != ET_EXEC) {
-        printf("Error: File %s is not an executable\n", argv[1]);
+    if (elf_header.e_ident[EI_DATA] != ELFDATA2LSB) {
+        printf("Error: %s is not a little-endian ELF file\n", argv[1]);
         exit(1);
     }
 
-    // Check if the file is compiled for x86
-    if (header.e_machine != EM_386) {
-        printf("Error: File %s is not compiled for x86\n", argv[1]);
+
+    // make sure the elf file is compiled for x86-64
+    if (elf_header.e_machine != EM_X86_64) {
+        printf("Error: %s is not compiled for x86-64\n", argv[1]);
         exit(1);
     }
 
-    // Read the program header table
-    Elf32_Phdr* programHeaderTable = malloc(header.e_phentsize * header.e_phnum);
+    // make sure the elf file is an executable
+    if (elf_header.e_type != ET_EXEC && elf_header.e_type != ET_DYN) {
+        printf("Error: %s is not an executable\n", argv[1]);
+        exit(1);
+    }    
 
-    // Read the section header table
-    Elf32_Shdr* sectionHeaderTable = malloc(header.e_shentsize * header.e_shnum);
+    if (elf_header.e_version != EV_CURRENT) {
+        printf("Error: %s is not a current version\n", argv[1]);
+        exit(1);
+    }
 
-    // Find the section header table string table
-    Elf32_Shdr* sectionHeaderTableStringTable = &sectionHeaderTable[header.e_shstrndx];
+    if (elf_header.e_phoff == 0) {
+        printf("Error: %s has no program header\n", argv[1]);
+        exit(1);
+    }
 
-    // Load all ‘segments’ of type LOAD into memory. This memory needs to be contiguous, in order to keep the relative pointers valid
-    // For this, first determine the total span of all loadable segments (i.e. the start address of the first loadable segment until the end address of the last one) and allocate this amount of memory. Use mmap() for this.
-    // Fill the allocated memory with the binary contents properly, taking into account all offsets so that the binary ‘structure’ is preserved.
-    // Finally, protect the memory regions with the correct flags (as obtained from the program header) to enable execute- or write-access to the relevant regions.
+    if (elf_header.e_phentsize != sizeof(Elf64_Phdr)) {
+        printf("Error: %s has an invalid program header entry size\n", argv[1]);
+        exit(1);
+    }
 
-    // Find the start address of the first loadable segment
-    Elf32_Addr firstLoadableSegmentStartAddress = 0;
-    for (int i = 0; i < header.e_phnum; i++) {
-        if (programHeaderTable[i].p_type == PT_LOAD) {
-            firstLoadableSegmentStartAddress = programHeaderTable[i].p_vaddr;
-            break;
+    if (elf_header.e_phnum == 0) {
+        printf("Error: %s has no program header entries\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shoff == 0) {
+        printf("Error: %s has no section header\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shentsize != sizeof(Elf64_Shdr)) {
+        printf("Error: %s has an invalid section header entry size\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shnum == 0) {
+        printf("Error: %s has no section header entries\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shstrndx == 0) {
+        printf("Error: %s has no section header string table\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shstrndx >= elf_header.e_shnum) {
+        printf("Error: %s has an invalid section header string table index\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_entry == 0) {
+        printf("Error: %s has no entry point\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_phoff >= elf_header.e_shoff) {
+        printf("Error: %s has an invalid program header offset\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_shoff >= elf_header.e_shoff + elf_header.e_shnum * elf_header.e_shentsize) {
+        printf("Error: %s has an invalid section header offset\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_phoff >= elf_header.e_shoff + elf_header.e_shnum * elf_header.e_shentsize) {
+        printf("Error: %s has an invalid program header offset\n", argv[1]);
+        exit(1);
+    }
+
+    if (elf_header.e_phoff + elf_header.e_phnum * elf_header.e_phentsize >= elf_header.e_shoff) {
+        printf("Error: %s has an invalid program header offset\n", argv[1]);
+        exit(1);
+    }
+
+
+    // determine the total span of the LOAD segments then allocate the amount of memory needed using mmap
+
+    // read the program header table into memory
+    Elf64_Phdr* program_header_table = malloc(elf_header.e_phnum * elf_header.e_phentsize);
+    fseek(file, elf_header.e_phoff, SEEK_SET);
+    fread(program_header_table, elf_header.e_phentsize, elf_header.e_phnum, file);
+
+    // find the total span of the LOAD segments
+    uint64_t min_vaddr = 0;
+    uint64_t max_vaddr = 0;
+
+    for (int i = 0; i < elf_header.e_phnum; i++) {
+        if (program_header_table[i].p_type == PT_LOAD) {
+            min_vaddr = MIN(min_vaddr, program_header_table[i].p_vaddr);
+            max_vaddr = MAX(max_vaddr, program_header_table[i].p_vaddr + program_header_table[i].p_memsz);
+        }
+    }
+    min_vaddr = ROUNDDOWN(min_vaddr, 4096);
+    max_vaddr = ROUNDUP(max_vaddr, 4096);
+
+    // allocate the memory
+    Elf64_Addr size = max_vaddr - min_vaddr;
+    // size *=2 ;
+    void* memory = mmap(NULL, size, PROT_READ | PROT_WRITE , MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    // read the LOAD segments into memory
+    for (int i = 0; i < elf_header.e_phnum; i++) {
+        if (program_header_table[i].p_type == PT_LOAD) {
+            fseek(file, program_header_table[i].p_offset, SEEK_SET);
+            // copy the segment into memory at the correct location
+            fread(memory + program_header_table[i].p_vaddr, program_header_table[i].p_filesz, 1, file);
         }
     }
 
-    // Find the end address of the last loadable segment
-    Elf32_Addr lastLoadableSegmentEndAddress = 0;
-    for (int i = 0; i < header.e_phnum; i++) {
-        if (programHeaderTable[i].p_type == PT_LOAD) {
-            if (programHeaderTable[i].p_vaddr + programHeaderTable[i].p_memsz > lastLoadableSegmentEndAddress) {
-                lastLoadableSegmentEndAddress = programHeaderTable[i].p_vaddr + programHeaderTable[i].p_memsz;
+    // use mmprotect
+    for (int i = 0; i < elf_header.e_phnum; i++) {
+        if (program_header_table[i].p_type == PT_LOAD) {
+            int prot = 0;
+            if (program_header_table[i].p_flags & PF_R) {
+                prot |= PROT_READ;
             }
-        }
-    }
-
-    // Allocate the memory
-    void* memory = mmap(firstLoadableSegmentStartAddress, lastLoadableSegmentEndAddress - firstLoadableSegmentStartAddress, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    //after allocating fill the allocated memory with the binary contents properly
-    for (int i = 0; i < header.e_phnum; i++) {
-        if (programHeaderTable[i].p_type == PT_LOAD) {
-            // Read the contents of the segment from the file
-            void* segmentContents = malloc(programHeaderTable[i].p_filesz);
-            fseek(file, programHeaderTable[i].p_offset, SEEK_SET);
-            fread(segmentContents, programHeaderTable[i].p_filesz, 1, file);
-
-            // Copy the contents to the allocated memory
-            memcpy(memory + programHeaderTable[i].p_vaddr, segmentContents, programHeaderTable[i].p_filesz);
-
-            // Free the segment contents
-            free(segmentContents);
-        }
-    }
-
-    // Finally, protect the memory regions with the correct flags (as obtained from the program header) to enable execute- or write-access to the relevant regions.
-    for (int i = 0; i < header.e_phnum; i++) {
-        if (programHeaderTable[i].p_type == PT_LOAD) {
-            // Determine the protection flags
-            int protectionFlags = 0;
-            if (programHeaderTable[i].p_flags & PF_R) {
-                protectionFlags |= PROT_READ;
+            if (program_header_table[i].p_flags & PF_W) {
+                prot |= PROT_WRITE;
             }
-            if (programHeaderTable[i].p_flags & PF_W) {
-                protectionFlags |= PROT_WRITE;
+            if (program_header_table[i].p_flags & PF_X) {
+                prot |= PROT_EXEC;
             }
-            if (programHeaderTable[i].p_flags & PF_X) {
-                protectionFlags |= PROT_EXEC;
-            }
-
-            // Protect the memory region
-            mprotect(memory + programHeaderTable[i].p_vaddr, programHeaderTable[i].p_memsz, protectionFlags);
+            mprotect(memory + program_header_table[i].p_vaddr, program_header_table[i].p_memsz, prot);
         }
     }
 
+    // grow the stack using alloca
+    uint64_t* stack = alloca(1024 * 1024); 
+    uint64_t* stack_start = stack;
 
-    // Find the .text section
-    Elf32_Shdr* textSection = NULL;
-    for (int i = 0; i < header.e_shnum; i++) {
-        if (strcmp(sectionHeaderTableStringTable->sh_offset + sectionHeaderTable[i].sh_name, ".text") == 0) {
-            textSection = &sectionHeaderTable[i];
-            break;
+    // put argc on the stack
+    *stack = argc - 1;
+    stack++;
+
+    // put argv on the stack
+    for (int i = 1; i < argc; i++) {
+        *stack = (uint64_t)argv[i];
+        stack++;
+    }
+
+    // put a null pointer on the stack
+    *stack = NULL;
+    stack++;
+
+    // put the envp
+    while(*envp) {
+        *stack = (uint64_t)*envp;
+        stack++;
+        envp++;
+    }
+    // at this point envp is pointing to a null pointer
+    *stack = NULL;
+    stack++;
+    envp++;
+
+    // now the envp is pointing to the auxv
+    while(*envp) {
+        *stack = (uint64_t)*envp;
+        envp++;
+        if (*stack == AT_PHDR) {
+            stack++; 
+            *stack = (uint64_t)(memory + elf_header.e_phoff);
+        } else if (*stack == AT_PHENT) {
+            stack++;
+            *stack = (uint64_t)elf_header.e_phentsize;
+        } else if (*stack == AT_PHNUM) {
+            stack++;
+            *stack = (uint64_t)elf_header.e_phnum;
+        } else if (*stack == AT_ENTRY) {
+            stack++;
+            *stack = (uint64_t)(memory + elf_header.e_entry);
+        } else {
+            stack++;
+            *stack = envp;
         }
+        envp++;
+        stack++;
     }
+    // at this point envp is pointing to a null pointer
+    *stack = NULL;
 
-    // Find the .data section
-    Elf32_Shdr* dataSection = NULL;
-    for (int i = 0; i < header.e_shnum; i++) {
-        if (strcmp(sectionHeaderTableStringTable->sh_offset + sectionHeaderTable[i].sh_name, ".data") == 0) {
-            dataSection = &sectionHeaderTable[i];
-            break;
-        }
-    }
+    // now the stack is ready to be passed to the entry point
+    jump(elf_header.e_entry + memory, stack_start);
 
-
-    // Find the .bss section
-    Elf32_Shdr* bssSection = NULL;
-    for (int i = 0; i < header.e_shnum; i++) {
-        if (strcmp(sectionHeaderTableStringTable->sh_offset + sectionHeaderTable[i].sh_name, ".bss") == 0) {
-            bssSection = &sectionHeaderTable[i];
-            break;
-        }
-    }
-
-    // Find the .rodata section
-    Elf32_Shdr* rodataSection = NULL;
-    for (int i = 0; i < header.e_shnum; i++) {
-        if (strcmp(sectionHeaderTableStringTable->sh_offset + sectionHeaderTable[i].sh_name, ".rodata") == 0) {
-            rodataSection = &sectionHeaderTable[i];
-            break;
-        }
-    }
-
-    // Find the .symtab section
-    Elf32_Shdr* symtabSection = NULL;
-    for (int i = 0; i < header.e_shnum; i++) {
-        if (strcmp(sectionHeaderTableStringTable->sh_offset + sectionHeaderTable[i].sh_name, ".symtab") == 0) {
-            symtabSection = &sectionHeaderTable[i];
-            break;
-        }
-    }
-
-    // Construct a new, fresh stack for the new program with the exact structure as discussed in appendix C. An easy trick for saving some errorprone work is also discussed there.
-
-    // Allocate the stack
-    void* stack = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    // Fill the stack with 0
-    memset(stack, 0, 0x1000);
-
-    // Set the stack pointer to the top of the stack
-    void* stackPointer = stack + 0x1000;
-
-    // Push the arguments to the stack
-    for (int i = 0; i < argc; i++) {
-        // Push the string to the stack
-        stackPointer -= strlen(argv[i]) + 1;
-        memcpy(stackPointer, argv[i], strlen(argv[i]) + 1);
-
-        // Push the pointer to the stack
-        stackPointer -= sizeof(void*);
-        memcpy(stackPointer, &stackPointer, sizeof(void*));
-    }
-
-    // Push the environment variables to the stack
-    for (int i = 0; i < envc; i++) {
-        // Push the string to the stack
-        stackPointer -= strlen(envp[i]) + 1;
-        memcpy(stackPointer, envp[i], strlen(envp[i]) + 1);
-
-        // Push the pointer to the stack
-        stackPointer -= sizeof(void*);
-        memcpy(stackPointer, &stackPointer, sizeof(void*));
-    }
-
-    // Push the auxiliary vector to the stack
-    for (int i = 0; i < auxc; i++) {
-        // Push the value to the stack
-        stackPointer -= sizeof(auxv[i].a_un.a_val);
-        memcpy(stackPointer, &auxv[i].a_un.a_val, sizeof(auxv[i].a_un.a_val));
-
-        // Push the type to the stack
-        stackPointer -= sizeof(auxv[i].a_type);
-        memcpy(stackPointer, &auxv[i].a_type, sizeof(auxv[i].a_type));
-    }
-
-    // Set the exit point (register %rdx), load the stack pointer, and jump to the entry point of the new binary (or the interpreter). Since this needs to be done in assembly, the implementation for this is already provided on Brightspace, but you will still need to call this code yourself.
-
-
-
-
-
-
+    // now that the program is loaded into memory, we can close the file
+    fclose(file);
+    return 0;
 }
