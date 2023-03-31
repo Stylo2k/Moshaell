@@ -131,7 +131,7 @@ int main(int argc, char** argv, char** envp) {
     // determine the total span of the LOAD segments then allocate the amount of memory needed using mmap
 
     // read the program header table into memory
-    Elf64_Phdr* program_header_table = malloc(elf_header.e_phnum * elf_header.e_phentsize);
+    Elf64_Phdr* program_header_table = malloc(elf_header.e_phnum, elf_header.e_phentsize);
     fseek(file, elf_header.e_phoff, SEEK_SET);
     fread(program_header_table, elf_header.e_phentsize, elf_header.e_phnum, file);
 
@@ -149,7 +149,7 @@ int main(int argc, char** argv, char** envp) {
     max_vaddr = ROUNDUP(max_vaddr, 4096);
 
     // allocate the memory
-    Elf64_Addr size = max_vaddr - min_vaddr;
+    uint64_t size = max_vaddr - min_vaddr;
     // size *=2 ;
     void* memory = mmap(NULL, size, PROT_READ | PROT_WRITE , MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -158,7 +158,7 @@ int main(int argc, char** argv, char** envp) {
         if (program_header_table[i].p_type == PT_LOAD) {
             fseek(file, program_header_table[i].p_offset, SEEK_SET);
             // copy the segment into memory at the correct location
-            fread(memory + program_header_table[i].p_vaddr, program_header_table[i].p_filesz, 1, file);
+            fread(memory + program_header_table[i].p_vaddr, 1, program_header_table[i].p_filesz, file);
         }
     }
 
@@ -175,7 +175,9 @@ int main(int argc, char** argv, char** envp) {
             if (program_header_table[i].p_flags & PF_X) {
                 prot |= PROT_EXEC;
             }
-            mprotect(memory + program_header_table[i].p_vaddr, program_header_table[i].p_memsz, prot);
+            Elf64_Addr start_addr = ROUNDDOWN(program_header_table[i].p_vaddr, 4096);
+            Elf64_Addr end_addr = ROUNDUP(program_header_table[i].p_vaddr + program_header_table[i].p_memsz, 4096);
+            mprotect(memory + start_addr, end_addr - start_addr, prot);   
         }
     }
 
